@@ -120,14 +120,15 @@ namespace SPI
                 return false;
             }
 
-            auto hookInfo = nameToHookMap_.at(std::string{ name });
+            const auto keyval = std::string{ name };
+            const auto hookInfo = nameToHookMap_.at(keyval);
             mhLastStatus_ = MH_RemoveHookEx((void*)4123, hookInfo.Identity, hookInfo.Target);
             if (mhLastStatus_ != MH_OK)
             {
                 GLogger.writeln(L"SharedHookMngr.Uninstall: remove failed, status = %d", mhLastStatus_);
                 return false;
             }
-
+            nameToHookMap_.erase(keyval);
             return true;
         }
     };
