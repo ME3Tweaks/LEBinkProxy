@@ -108,6 +108,7 @@
     <ClInclude Include="minhook\src\hde\pstdint.h" />
     <ClInclude Include="minhook\src\hde\table64.h" />
     <ClInclude Include="minhook\src\trampoline.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="src\drm.h" />
     <ClInclude Include="src\gamever.h" />
     <ClInclude Include="src\modules\console_enabler.h" />
@@ -149,6 +150,9 @@
     <None Include=".gitattributes" />
     <None Include=".gitignore" />
     <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

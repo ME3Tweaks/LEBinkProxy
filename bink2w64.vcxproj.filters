@@ -43,6 +43,7 @@
     <ClInclude Include="src\utils\classutils.h" />
     <ClInclude Include="src\spi\shared_hook_manager.h" />
     <ClInclude Include="src\spi\shallow_implementation.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="minhook\AUTHORS.txt" />
@@ -53,5 +54,8 @@
     <None Include=".gitignore" />
     <None Include="README.md" />
     <None Include=".gitattributes" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
 </Project>
