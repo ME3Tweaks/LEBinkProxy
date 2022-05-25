@@ -99,8 +99,8 @@ private:
 	LEGameVersion launchTarget_ = LEGameVersion::Unsupported;
 	bool autoTerminate_ = false;
 	bool needsLauncherConfigParsed_ = true; // Defaults to true (turns to false if we find command line args)
-	wchar_t* bootLanguage_ = L"INT"; // The default language (English)
-	wchar_t* subtitleSize_ = L"20"; // The default subtitle size
+	const wchar_t* bootLanguage_ = L"INT"; // The default language (English)
+	const wchar_t* subtitleSize_ = L"20"; // The default subtitle size
 
 	bool needsConfigMade_ = false;
 
