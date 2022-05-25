@@ -2,6 +2,7 @@
 #define ASI_LOG_FNAME "bink2w64_proxy.log"
 
 #include <Windows.h>
+#include <filesystem>
 #include <Dbghelp.h>
 
 #include <cwchar>
@@ -116,13 +117,23 @@ void UnsetVectoredExceptionHandler()
     }
 }
 
+// Fixes bad launcher logic when not using Autoboot (sets the wrong working directory)
+void SetWorkingDirectory() {
+    WCHAR path[MAX_PATH];
+    GetModuleFileNameW(NULL, path, MAX_PATH);
+    std::filesystem::path exePath = path;
+    SetCurrentDirectoryW(exePath.parent_path().c_str());
+}
+
 void __stdcall OnAttach()
 {
+    SetWorkingDirectory();
+
     // Open console or log.
     Utils::SetupOutput();
 
     GLogger.writeln(L"Attached...\n"
-                    L"LEBinkProxy by d00telemental\n"
+                    L"LEBinkProxy by d00telemental/ME3Tweaks\n"
                     L"Version=\"" LEBINKPROXY_VERSION L"\", built=\"" LEBINKPROXY_BUILDTM L"\", config=\"" LEBINKPROXY_BUILDMD L"\"\n"
                     L"Only trust distributions installed by ME3Tweaks Mod Manager 7.0+ !");
 
