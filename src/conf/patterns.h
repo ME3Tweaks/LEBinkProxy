@@ -11,6 +11,9 @@
 #define LEL_ExecutableName            L"MassEffectLauncher.exe"
 #define LEL_WindowTitle               L"Mass Effect Launcher"
 
+#define LEL_DRMTest_Pattern     (BYTE*)"\x00\x00\x48\xc7\x44\x24\x20\xfe\xff\xff\xff\x48\x89\x58\x18\x48\x89\x70\x20"
+#define LEL_DRMTest_Mask     (BYTE*)"xxxxxxxxxxxxxxxxxxx"
+
 
 // Mass Effect 1
 // ==============================

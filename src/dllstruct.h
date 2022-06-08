@@ -12,6 +12,7 @@
 class AsiLoaderModule;
 class ConsoleEnablerModule;
 class LauncherArgsModule;
+class LauncherProcessLaunchWorkingDirFixModule;
 
 
 struct LEBinkProxy
@@ -25,7 +26,8 @@ public:
     LEGameVersion Game;
 
     AsiLoaderModule*       AsiLoader;
-    ConsoleEnablerModule*  ConsoleEnabler;
+    ConsoleEnablerModule* ConsoleEnabler;
+    LauncherProcessLaunchWorkingDirFixModule* LauncherFixer;
     LauncherArgsModule*    LauncherArgs;
 
     ISharedProxyInterface* SPI;

@@ -8,7 +8,7 @@
 #include "drm.h"
 #include "ue_types.h"
 
-
+#ifndef FIND_PATTERN
 #define FIND_PATTERN(TYPE,VAR,NAME,PAT,MASK) \
 temp = Utils::ScanProcess(PAT, MASK); \
 if (!temp) { \
@@ -17,7 +17,7 @@ if (!temp) { \
 } \
 GLogger.writeln(L"findOffsets_: found " NAME L" at %p.", temp); \
 VAR = (TYPE)temp;
-
+#endif
 
 class ConsoleEnablerModule
     : public IModule

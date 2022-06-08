@@ -81,6 +81,9 @@ namespace DRM
             case LEGameVersion::LE3:
                 foundPattern = nullptr != Utils::ScanProcess(LE3_UFunctionBind_Pattern, LE3_UFunctionBind_Mask);
                 break;
+            case LEGameVersion::Launcher:
+                foundPattern = nullptr != Utils::ScanProcess(LEL_DRMTest_Pattern, LEL_DRMTest_Mask);
+                break;
             default:
                 foundPattern = true;
             }

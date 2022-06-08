@@ -16,6 +16,7 @@
 #include "spi.h"
 #include "modules/asi_loader.h"
 #include "modules/console_enabler.h"
+#include "modules/launcher_working_dir_fix.h"
 #include "modules/launcher_args.h"
 
 
@@ -127,15 +128,13 @@ void SetWorkingDirectory() {
 
 void __stdcall OnAttach()
 {
-    SetWorkingDirectory();
-
     // Open console or log.
     Utils::SetupOutput();
 
     GLogger.writeln(L"Attached...\n"
                     L"LEBinkProxy by d00telemental/ME3Tweaks\n"
                     L"Version=\"" LEBINKPROXY_VERSION L"\", built=\"" LEBINKPROXY_BUILDTM L"\", config=\"" LEBINKPROXY_BUILDMD L"\"\n"
-                    L"Only trust distributions installed by ME3Tweaks Mod Manager 7.0+ !");
+                    L"Only trust distributions installed by ME3Tweaks Mod Manager 7.0+.");
 
     // Register exception handler for memory dumps.
     // Removed on DETACH.
@@ -155,7 +154,11 @@ void __stdcall OnAttach()
     // Register modules (console enabler, launcher arg handler, asi loader).
     GLEBinkProxy.AsiLoader = new AsiLoaderModule;
     GLEBinkProxy.ConsoleEnabler = new ConsoleEnablerModule;
-    GLEBinkProxy.LauncherArgs = new LauncherArgsModule;
+    if (GLEBinkProxy.Game == LEGameVersion::Launcher)
+    {
+        GLEBinkProxy.LauncherArgs = new LauncherArgsModule;
+        GLEBinkProxy.LauncherFixer = new LauncherProcessLaunchWorkingDirFixModule;
+    }
 
     // Spawn the SPI implementation.
     GLEBinkProxy.SPI = new SPI::SharedProxyInterface();
@@ -200,10 +203,20 @@ void __stdcall OnAttach()
         }
         case LEGameVersion::Launcher:
         {
+            // Keep trying to find a pattern we are *almost* guaranteed to have until we find it.
+            DRM::WaitForDRMv3();
+
             if (!GLEBinkProxy.LauncherArgs->Activate())
             {
                 GLogger.writeln(L"OnAttach: ERROR: handling of Launcher args failed, aborting!");
             }
+
+            // Hook CreateProcessA so we can properly set the working directory when launching a game.
+            if (!GLEBinkProxy.LauncherFixer->Activate())
+            {
+                GLogger.writeln(L"OnAttach: ERROR: error fixing launcher working directory issue!");
+            }
+
             break;
         }
         default:
