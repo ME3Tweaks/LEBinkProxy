@@ -178,11 +178,11 @@ private:
 				}
 
 				// Look for '-OVERRIDELANGUAGE=' to set the language
-				auto overrideLangPos = wcsstr(startCmdLine, L" -OVERRIDELANGUAGE=");
-				GLogger.writeln(L"LauncherArgsModule.parseCmdLine_: Found command line parameter -OVERRIDELANGUAGE= at %x", overrideLangPos);
+				auto overrideLangPos = wcsstr(startCmdLine, L" -OVERRIDELANGUAGE="); // Length: 19
 
 				if (overrideLangPos != nullptr)
 				{
+					GLogger.writeln(L"LauncherArgsModule.parseCmdLine_: Found command line parameter -OVERRIDELANGUAGE= at %x", overrideLangPos);
 					auto langStartPos = overrideLangPos + 19;
 					auto langEndPos = langStartPos;
 
@@ -207,7 +207,38 @@ private:
 				}
 				else
 				{
-					GLogger.writeln(L"LauncherArgsModule.parseCmdLine_: Didn't find -OVERRIDELANGUAGE=, defaulting to INT (will read config file)");
+					// Check for 'language' parameter - M3 will send this if it is LE3 due to LE3 using this command line arg instead for some reason...
+					overrideLangPos = wcsstr(startCmdLine, L" -language="); // Length: 11
+
+					if (overrideLangPos != nullptr)
+					{
+						GLogger.writeln(L"LauncherArgsModule.parseCmdLine_: Found command line parameter -language= at %x", overrideLangPos);
+						auto langStartPos = overrideLangPos + 11;
+						auto langEndPos = langStartPos;
+
+						// Hackjob to find the end of string of the end of the end of the parameter
+						while ((size_t)langEndPos < (size_t)endCmdLine && !std::iswspace(langEndPos[0]))
+						{
+							langEndPos++;
+						}
+
+						// Don't really know what I'm doing here...
+						auto count = langEndPos - langStartPos;
+						auto newLang = new wchar_t[count + 1]; // 1 for null terminator
+						wcsncpy(newLang, langStartPos, count);
+						newLang[count] = '\0';
+						//newLang[count+1] = '\0';
+
+						this->bootLanguage_ = newLang;
+
+						ClipOutSubString(startCmdLine, overrideLangPos - startCmdLine, (int)count + 11);
+						GLogger.writeln(L"LauncherArgsModule.parseCmdLine_: Found command line parameter -language=, setting lang to %ls", this->bootLanguage_);
+						readLang = true;
+					} else
+					{
+						GLogger.writeln(L"LauncherArgsModule.parseCmdLine_: Didn't find -OVERRIDELANGUAGE= or -language, defaulting to INT (will read config file)");
+
+					}
 				}
 
 				this->needsLauncherConfigParsed_ = !readLang || !readSubs;

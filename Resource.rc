@@ -51,8 +51,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,0,0,8
- PRODUCTVERSION 2,0,0,8
+ FILEVERSION 2,0,0,9
+ PRODUCTVERSION 2,0,0,9
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -69,12 +69,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "ME3Tweaks"
             VALUE "FileDescription", "A multifunctional proxy DLL for Mass Effect Legendary Edition"
-            VALUE "FileVersion", "2.0.0.8"
+            VALUE "FileVersion", "2.0.0.9"
             VALUE "InternalName", "bink2w64.dll"
             VALUE "LegalCopyright", "Copyright (C) 2021 - 2022 d00telemental / ME3Tweaks"
             VALUE "OriginalFilename", "bink2w64.dll"
             VALUE "ProductName", "LEBinkProxy (RELEASE)"
-            VALUE "ProductVersion", "2.0.0.8"
+            VALUE "ProductVersion", "2.0.0.9"
         END
     END
     BLOCK "VarFileInfo"
