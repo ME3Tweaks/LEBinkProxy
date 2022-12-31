@@ -8,6 +8,7 @@
 #include <utility>
 #include <cwctype>
 #include <iostream>
+#include <map>
 
 #include "gamever.h"
 #include "../utils/io.h"
@@ -113,15 +114,6 @@ private:
 	bool parseCmdLine_(wchar_t* cmdLine)
 	{
 		auto startCmdLine = cmdLine;
-
-		// Strip out the executable name.
-		auto endOfExecutable = wcsstr(startCmdLine, L"MassEffectLauncher.exe") - startCmdLine + 22;
-
-		// Remove quotes if any
-		if (startCmdLine[endOfExecutable] == '\"')
-			endOfExecutable++;
-
-		ClipOutSubString(startCmdLine, 0, endOfExecutable);
 
 		auto endCmdLine = startCmdLine + wcslen(startCmdLine);
 		auto startWCPtr = wcsstr(startCmdLine, L" -game ");
