@@ -138,6 +138,7 @@ void __stdcall OnAttach()
 	if (nullptr != std::wcsstr(GetCommandLineW(), L" -enableminidumps")) {
 		// Register exception handler for memory dumps.
 		// Removed on DETACH.
+		GLogger.writeln(L"Minidumps are enabled for this session");
 		SetVectoredExceptionHandler();
 	}
 
