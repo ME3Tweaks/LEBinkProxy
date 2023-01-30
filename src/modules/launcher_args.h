@@ -23,9 +23,9 @@ struct LaunchGameParams
 	LEGameVersion Target;
 	bool AutoTerminate;
 
-	char* GameExePath;
-	char* GameCmdLine;
-	char* GameWorkDir;
+	wchar_t* GameExePath;
+	wchar_t* GameCmdLine;
+	wchar_t* GameWorkDir;
 };
 
 void LaunchGameThread(LaunchGameParams launchParams)
@@ -35,7 +35,7 @@ void LaunchGameThread(LaunchGameParams launchParams)
 	auto gameWorkDir = launchParams.GameWorkDir;
 
 
-	STARTUPINFOA startupInfo;
+	STARTUPINFOW startupInfo;
 	PROCESS_INFORMATION processInfo;
 
 	ZeroMemory(&startupInfo, sizeof(startupInfo));
@@ -52,7 +52,7 @@ void LaunchGameThread(LaunchGameParams launchParams)
 	//flags = CREATE_SUSPENDED;
 	//GLogger.writeln(L"LaunchGameThread: WARNING! CREATING CHILD PROCESS IN SUSPENDED STATE!");
 
-	auto rc = CreateProcessA(gameExePath, const_cast<char*>(gameCmdLine), nullptr, nullptr, false, flags, nullptr, gameWorkDir, &startupInfo, &processInfo);
+	auto rc = CreateProcessW(gameExePath, const_cast<wchar_t*>(gameCmdLine), nullptr, nullptr, false, flags, nullptr, gameWorkDir, &startupInfo, &processInfo);
 	if (rc == 0)
 	{
 		GLogger.writeln(L"LaunchGameThread: failed to create a process (error code = %d)", GetLastError());
@@ -80,11 +80,11 @@ void LaunchGameThread(LaunchGameParams launchParams)
 
 struct VoiceOverDataPair
 {
-	std::string LocalVO;
-	std::string InternationalVO;
+	std::wstring LocalVO;
+	std::wstring InternationalVO;
 
 	VoiceOverDataPair() : LocalVO{}, InternationalVO{} {}
-	VoiceOverDataPair(std::string local, std::string international) : LocalVO{ local }, InternationalVO{ international } {}
+	VoiceOverDataPair(std::wstring local, std::wstring international) : LocalVO{ local }, InternationalVO{ international } {}
 };
 
 
@@ -106,8 +106,8 @@ private:
 	bool needsConfigMade_ = false;
 
 	LaunchGameParams launchParams_;
-	char cmdArgsBuffer_[4096];
-	char debuggerPath_[512];
+	wchar_t cmdArgsBuffer_[4096];
+	wchar_t debuggerPath_[512];
 
 	// Methods.
 
@@ -226,7 +226,8 @@ private:
 						ClipOutSubString(startCmdLine, overrideLangPos - startCmdLine, (int)count + 11);
 						GLogger.writeln(L"LauncherArgsModule.parseCmdLine_: Found command line parameter -language=, setting lang to %ls", this->bootLanguage_);
 						readLang = true;
-					} else
+					}
+					else
 					{
 						GLogger.writeln(L"LauncherArgsModule.parseCmdLine_: Didn't find -OVERRIDELANGUAGE= or -language, defaulting to INT (will read config file)");
 
@@ -249,8 +250,8 @@ private:
 	bool parseLauncherConfig_()
 	{
 		// Default values.
-		std::string subtitlesSize = "20";
-		std::string overrideLang = "INT";
+		std::wstring subtitlesSize = L"20";
+		std::wstring overrideLang = L"INT";
 
 		// Make path to the config file.
 		wchar_t documentsPath[MAX_PATH];
@@ -281,7 +282,7 @@ private:
 
 		// Value reading variables.
 		bool readEnglishVOEnabled = false, readLanguage = false, readSubtitleSize = false;
-		char cfgEnglishVOEnabled[64], cfgLanguage[64], cfgSubtitlesSize[64];
+		wchar_t cfgEnglishVOEnabled[64], cfgLanguage[64], cfgSubtitlesSize[64];
 
 		// Actually read the damn file.
 		std::ifstream configFile{ launcherConfigPath };
@@ -319,19 +320,19 @@ private:
 		if (!readEnglishVOEnabled)
 		{
 			GLogger.writeln(L"parseLauncherConfig_: filling in englishVoEnabled with defaults!");
-			sprintf(cfgEnglishVOEnabled, "false");
+			wsprintf(cfgEnglishVOEnabled, L"false");
 			readEnglishVOEnabled = true;
 		}
 		if (!readLanguage)
 		{
 			GLogger.writeln(L"parseLauncherConfig_: filling in language with defaults!");
-			sprintf(cfgLanguage, "en_US");
+			wsprintf(cfgLanguage, L"en_US");
 			readLanguage = true;
 		}
 		if (!readSubtitleSize)
 		{
 			GLogger.writeln(L"parseLauncherConfig_: filling in subtitleSize with defaults!");
-			sprintf(cfgSubtitlesSize, "20");
+			wsprintf(cfgSubtitlesSize, L"20");
 			readSubtitleSize = true;
 		}
 
@@ -345,70 +346,70 @@ private:
 		}
 
 		// Validate the found values.
-		if (strcmp(cfgEnglishVOEnabled, "false")
-			&& strcmp(cfgEnglishVOEnabled, "true"))
+		if (wcscmp(cfgEnglishVOEnabled, L"false")
+			&& wcscmp(cfgEnglishVOEnabled, L"true"))
 		{
 			// MSGBOX: TRY RUNNING THE LAUNCHER / GAMES NORMALLY FOR ONCE
 			GLogger.writeln(L"parseLauncherConfig_: key EnglishVOEnabled has an invalid value: %s!", cfgEnglishVOEnabled);
 			return false;
 		}
-		if (strcmp(cfgLanguage, "en_US")
-			&& strcmp(cfgLanguage, "fr_FR")
-			&& strcmp(cfgLanguage, "de_DE")
-			&& strcmp(cfgLanguage, "it_IT")
-			&& strcmp(cfgLanguage, "ja_JP")
-			&& strcmp(cfgLanguage, "es_ES")
-			&& strcmp(cfgLanguage, "ru_RU")
-			&& strcmp(cfgLanguage, "pl_PL"))
+		if (wcscmp(cfgLanguage, L"en_US")
+			&& wcscmp(cfgLanguage, L"fr_FR")
+			&& wcscmp(cfgLanguage, L"de_DE")
+			&& wcscmp(cfgLanguage, L"it_IT")
+			&& wcscmp(cfgLanguage, L"ja_JP")
+			&& wcscmp(cfgLanguage, L"es_ES")
+			&& wcscmp(cfgLanguage, L"ru_RU")
+			&& wcscmp(cfgLanguage, L"pl_PL"))
 		{
 			// MSGBOX: TRY RUNNING THE LAUNCHER / GAMES NORMALLY FOR ONCE
 			GLogger.writeln(L"parseLauncherConfig_: key language has an invalid value: %s!", cfgLanguage);
 			return false;
 		}
 
-		const std::map<std::string, VoiceOverDataPair> localizationCodesLE1
+		const std::map<std::wstring, VoiceOverDataPair> localizationCodesLE1
 		{
-			{ "en_US", VoiceOverDataPair{ "INT", "INT" } },
-			{ "fr_FR", VoiceOverDataPair{ "FR",  "FE"  } },
-			{ "de_DE", VoiceOverDataPair{ "DE",  "GE"  } },
-			{ "it_IT", VoiceOverDataPair{ "IT",  "IE"  } },
-			{ "ja_JP", VoiceOverDataPair{ "JA",  "JA"  } },
-			{ "es_ES", VoiceOverDataPair{ "ES",  "ES"  } },
-			{ "ru_RU", VoiceOverDataPair{ "RA",  "RU"  } },
-			{ "pl_PL", VoiceOverDataPair{ "PLPC", "PL" } },
+			{ L"en_US", VoiceOverDataPair{ L"INT", L"INT" } },
+			{ L"fr_FR", VoiceOverDataPair{ L"FR",  L"FE"  } },
+			{ L"de_DE", VoiceOverDataPair{ L"DE",  L"GE"  } },
+			{ L"it_IT", VoiceOverDataPair{ L"IT",  L"IE"  } },
+			{ L"ja_JP", VoiceOverDataPair{ L"JA",  L"JA"  } },
+			{ L"es_ES", VoiceOverDataPair{ L"ES",  L"ES"  } },
+			{ L"ru_RU", VoiceOverDataPair{ L"RA",  L"RU"  } },
+			{ L"pl_PL", VoiceOverDataPair{ L"PLPC", L"PL" } },
 		};
-		const std::map<std::string, VoiceOverDataPair> localizationCodesLE2
+		const std::map<std::wstring, VoiceOverDataPair> localizationCodesLE2
 		{
-			{ "en_US", VoiceOverDataPair{ "INT", "INT" } },
-			{ "fr_FR", VoiceOverDataPair{ "FRA", "FRE" } },
-			{ "de_DE", VoiceOverDataPair{ "DEU", "DEE" } },
-			{ "it_IT", VoiceOverDataPair{ "ITA", "ITE" } },
-			{ "ja_JP", VoiceOverDataPair{ "JPN", "JPN" } },
-			{ "es_ES", VoiceOverDataPair{ "ESN", "ESN" } },
-			{ "ru_RU", VoiceOverDataPair{ "RUS", "RUS" } },
-			{ "pl_PL", VoiceOverDataPair{ "POL", "POE" } },
+			{ L"en_US", VoiceOverDataPair{ L"INT", L"INT" } },
+			{ L"fr_FR", VoiceOverDataPair{ L"FRA", L"FRE" } },
+			{ L"de_DE", VoiceOverDataPair{ L"DEU", L"DEE" } },
+			{ L"it_IT", VoiceOverDataPair{ L"ITA", L"ITE" } },
+			{ L"ja_JP", VoiceOverDataPair{ L"JPN", L"JPN" } },
+			{ L"es_ES", VoiceOverDataPair{ L"ESN", L"ESN" } },
+			{ L"ru_RU", VoiceOverDataPair{ L"RUS", L"RUS" } },
+			{ L"pl_PL", VoiceOverDataPair{ L"POL", L"POE" } },
 		};
-		const std::map<std::string, VoiceOverDataPair> localizationCodesLE3
+		const std::map<std::wstring, VoiceOverDataPair> localizationCodesLE3
 		{
-			{ "en_US", VoiceOverDataPair{ "INT", "INT" } },
-			{ "fr_FR", VoiceOverDataPair{ "FRA", "FRE" } },
-			{ "de_DE", VoiceOverDataPair{ "DEU", "DEE" } },
-			{ "it_IT", VoiceOverDataPair{ "ITA", "ITE" } },
-			{ "ja_JP", VoiceOverDataPair{ "JPN", "JPN" } },
-			{ "es_ES", VoiceOverDataPair{ "ESN", "ESN" } },
-			{ "ru_RU", VoiceOverDataPair{ "RUS", "RUS" } },
-			{ "pl_PL", VoiceOverDataPair{ "POL", "POL" } },
+			{ L"en_US", VoiceOverDataPair{ L"INT", L"INT" } },
+			{ L"fr_FR", VoiceOverDataPair{ L"FRA", L"FRE" } },
+			{ L"de_DE", VoiceOverDataPair{ L"DEU", L"DEE" } },
+			{ L"it_IT", VoiceOverDataPair{ L"ITA", L"ITE" } },
+			{ L"ja_JP", VoiceOverDataPair{ L"JPN", L"JPN" } },
+			{ L"es_ES", VoiceOverDataPair{ L"ESN", L"ESN" } },
+			{ L"ru_RU", VoiceOverDataPair{ L"RUS", L"RUS" } },
+			{ L"pl_PL", VoiceOverDataPair{ L"POL", L"POL" } },
 		};
 
 		subtitlesSize = cfgSubtitlesSize;
-		bool useInternationalVO = !strcmp(cfgEnglishVOEnabled, "true");
+		bool useInternationalVO = !wcscmp(cfgEnglishVOEnabled, L"true");
 
 
 		// Extra params.
 
-		char* cmdLineA = GetCommandLineA();
-		char extraParams[1024];
-		sprintf(extraParams, "%s", cmdLineA);
+		wchar_t* cmdLineW = GetCommandLineW();
+		wchar_t extraParams[1024];
+		wsprintf(extraParams, L"%s", cmdLineW);
 
 		// End extra params parsing.
 
@@ -420,8 +421,8 @@ private:
 			const auto& pair = localizationCodesLE1.at(cfgLanguage);
 			overrideLang = (useInternationalVO ? pair.InternationalVO : pair.LocalVO).c_str();
 
-			sprintf(this->cmdArgsBuffer_,
-				" -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %s -OVERRIDELANGUAGE=%s %s",
+			wsprintf(this->cmdArgsBuffer_,
+				L" -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %s -OVERRIDELANGUAGE=%s %s",
 				subtitlesSize.c_str(), overrideLang.c_str(), extraParams);
 
 			break;
@@ -431,8 +432,8 @@ private:
 			const auto& pair = localizationCodesLE2.at(cfgLanguage);
 			overrideLang = (useInternationalVO ? pair.InternationalVO : pair.LocalVO).c_str();
 
-			sprintf(this->cmdArgsBuffer_,
-				" -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %s -OVERRIDELANGUAGE=%s %s",
+			wsprintf(this->cmdArgsBuffer_,
+				L" -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %s -OVERRIDELANGUAGE=%s %s",
 				subtitlesSize.c_str(), overrideLang.c_str(), extraParams);
 
 			break;
@@ -442,8 +443,8 @@ private:
 			const auto& pair = localizationCodesLE3.at(cfgLanguage);
 			overrideLang = (useInternationalVO ? pair.InternationalVO : pair.LocalVO).c_str();
 
-			sprintf(this->cmdArgsBuffer_,
-				" -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %s -language=%s  %s",
+			wsprintf(this->cmdArgsBuffer_,
+				L" -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %s -language=%s  %s",
 				subtitlesSize.c_str(), overrideLang.c_str(), extraParams);
 
 			break;
@@ -455,16 +456,16 @@ private:
 	}
 	bool overrideForDebug_()
 	{
-		if (0 != GetEnvironmentVariableA("LEBINK_DEBUGGER", debuggerPath_, 512))
+		if (0 != GetEnvironmentVariableW(L"LEBINK_DEBUGGER", debuggerPath_, 512))
 		{
 			GLogger.writeln(L"overrideForDebug_ env. detected, appplying the override...");
 
-			char prependBuffer[2048];
-			sprintf(prependBuffer, "%s %s", launchParams_.GameExePath, launchParams_.GameCmdLine);
-			sprintf(cmdArgsBuffer_, "%s", prependBuffer);
+			wchar_t prependBuffer[2048];
+			wsprintf(prependBuffer, L"%s %s", launchParams_.GameExePath, launchParams_.GameCmdLine);
+			wsprintf(cmdArgsBuffer_, L"%s", prependBuffer);
 
-			launchParams_.GameCmdLine = static_cast<char*>(cmdArgsBuffer_);
-			launchParams_.GameExePath = static_cast<char*>(debuggerPath_);
+			launchParams_.GameCmdLine = static_cast<wchar_t*>(cmdArgsBuffer_);
+			launchParams_.GameExePath = static_cast<wchar_t*>(debuggerPath_);
 
 			return true;
 		}
@@ -472,24 +473,24 @@ private:
 		return false;
 	}
 
-	const char* gameToPath_(LEGameVersion version) const noexcept
+	const wchar_t* gameToPath_(LEGameVersion version) const noexcept
 	{
 		switch (version)
 		{
-		case LEGameVersion::LE1: return "../ME1/Binaries/Win64/MassEffect1.exe";
-		case LEGameVersion::LE2: return "../ME2/Binaries/Win64/MassEffect2.exe";
-		case LEGameVersion::LE3: return "../ME3/Binaries/Win64/MassEffect3.exe";
+		case LEGameVersion::LE1: return L"../ME1/Binaries/Win64/MassEffect1.exe";
+		case LEGameVersion::LE2: return L"../ME2/Binaries/Win64/MassEffect2.exe";
+		case LEGameVersion::LE3: return L"../ME3/Binaries/Win64/MassEffect3.exe";
 		default:
 			return nullptr;
 		}
 	}
-	const char* gameToWorkingDir_(LEGameVersion version) const noexcept
+	const wchar_t* gameToWorkingDir_(LEGameVersion version) const noexcept
 	{
 		switch (version)
 		{
-		case LEGameVersion::LE1: return "../ME1/Binaries/Win64";
-		case LEGameVersion::LE2: return "../ME2/Binaries/Win64";
-		case LEGameVersion::LE3: return "../ME3/Binaries/Win64";
+		case LEGameVersion::LE1: return L"../ME1/Binaries/Win64";
+		case LEGameVersion::LE2: return L"../ME2/Binaries/Win64";
+		case LEGameVersion::LE3: return L"../ME3/Binaries/Win64";
 		default:
 			return nullptr;
 		}
@@ -557,13 +558,13 @@ public:
 			switch (this->launchTarget_)
 			{
 			case LEGameVersion::LE1:
-				sprintf(this->cmdArgsBuffer_, " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %ls -OVERRIDELANGUAGE=%ls  %ls", this->subtitleSize_, this->bootLanguage_, GLEBinkProxy.CmdLine);
+				wsprintf(this->cmdArgsBuffer_, L" -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %ls -OVERRIDELANGUAGE=%ls  %ls", this->subtitleSize_, this->bootLanguage_, GLEBinkProxy.CmdLine);
 				break;
 			case LEGameVersion::LE2:
-				sprintf(this->cmdArgsBuffer_, " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %ls -OVERRIDELANGUAGE=%ls  %ls", this->subtitleSize_, this->bootLanguage_, GLEBinkProxy.CmdLine);
+				wsprintf(this->cmdArgsBuffer_, L" -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %ls -OVERRIDELANGUAGE=%ls  %ls", this->subtitleSize_, this->bootLanguage_, GLEBinkProxy.CmdLine);
 				break;
 			case LEGameVersion::LE3:
-				sprintf(this->cmdArgsBuffer_, " -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %ls -language=%ls  %ls", this->subtitleSize_, this->bootLanguage_, GLEBinkProxy.CmdLine);
+				wsprintf(this->cmdArgsBuffer_, L" -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %ls -language=%ls  %ls", this->subtitleSize_, this->bootLanguage_, GLEBinkProxy.CmdLine);
 				break;
 			}
 		}
@@ -571,9 +572,9 @@ public:
 		// Set up everything for the process start.
 		launchParams_.Target = this->launchTarget_;
 		launchParams_.AutoTerminate = this->autoTerminate_;
-		launchParams_.GameExePath = const_cast<char*>(gameToPath_(this->launchTarget_));
-		launchParams_.GameCmdLine = const_cast<char*>(this->cmdArgsBuffer_);
-		launchParams_.GameWorkDir = const_cast<char*>(gameToWorkingDir_(this->launchTarget_));
+		launchParams_.GameExePath = const_cast<wchar_t*>(gameToPath_(this->launchTarget_));
+		launchParams_.GameCmdLine = const_cast<wchar_t*>(this->cmdArgsBuffer_);
+		launchParams_.GameWorkDir = const_cast<wchar_t*>(gameToWorkingDir_(this->launchTarget_));
 
 		// Allow debugging functionality.
 		this->overrideForDebug_();
