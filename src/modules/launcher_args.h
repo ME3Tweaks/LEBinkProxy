@@ -282,7 +282,7 @@ private:
 
 		// Value reading variables.
 		bool readEnglishVOEnabled = false, readLanguage = false, readSubtitleSize = false;
-		wchar_t cfgEnglishVOEnabled[64], cfgLanguage[64], cfgSubtitlesSize[64];
+		char cfgEnglishVOEnabled[64], cfgLanguage[64], cfgSubtitlesSize[64];
 
 		// Actually read the damn file.
 		std::ifstream configFile{ launcherConfigPath };
@@ -320,19 +320,19 @@ private:
 		if (!readEnglishVOEnabled)
 		{
 			GLogger.writeln(L"parseLauncherConfig_: filling in englishVoEnabled with defaults!");
-			wsprintf(cfgEnglishVOEnabled, L"false");
+			sprintf(cfgEnglishVOEnabled, "false");
 			readEnglishVOEnabled = true;
 		}
 		if (!readLanguage)
 		{
 			GLogger.writeln(L"parseLauncherConfig_: filling in language with defaults!");
-			wsprintf(cfgLanguage, L"en_US");
+			sprintf(cfgLanguage, "en_US");
 			readLanguage = true;
 		}
 		if (!readSubtitleSize)
 		{
 			GLogger.writeln(L"parseLauncherConfig_: filling in subtitleSize with defaults!");
-			wsprintf(cfgSubtitlesSize, L"20");
+			sprintf(cfgSubtitlesSize, "20");
 			readSubtitleSize = true;
 		}
 
@@ -346,63 +346,66 @@ private:
 		}
 
 		// Validate the found values.
-		if (wcscmp(cfgEnglishVOEnabled, L"false")
-			&& wcscmp(cfgEnglishVOEnabled, L"true"))
+		if (strcmp(cfgEnglishVOEnabled, "false")
+			&& strcmp(cfgEnglishVOEnabled, "true"))
 		{
 			// MSGBOX: TRY RUNNING THE LAUNCHER / GAMES NORMALLY FOR ONCE
 			GLogger.writeln(L"parseLauncherConfig_: key EnglishVOEnabled has an invalid value: %s!", cfgEnglishVOEnabled);
 			return false;
 		}
-		if (wcscmp(cfgLanguage, L"en_US")
-			&& wcscmp(cfgLanguage, L"fr_FR")
-			&& wcscmp(cfgLanguage, L"de_DE")
-			&& wcscmp(cfgLanguage, L"it_IT")
-			&& wcscmp(cfgLanguage, L"ja_JP")
-			&& wcscmp(cfgLanguage, L"es_ES")
-			&& wcscmp(cfgLanguage, L"ru_RU")
-			&& wcscmp(cfgLanguage, L"pl_PL"))
+		if (strcmp(cfgLanguage, "en_US")
+			&& strcmp(cfgLanguage, "fr_FR")
+			&& strcmp(cfgLanguage, "de_DE")
+			&& strcmp(cfgLanguage, "it_IT")
+			&& strcmp(cfgLanguage, "ja_JP")
+			&& strcmp(cfgLanguage, "es_ES")
+			&& strcmp(cfgLanguage, "ru_RU")
+			&& strcmp(cfgLanguage, "pl_PL"))
 		{
 			// MSGBOX: TRY RUNNING THE LAUNCHER / GAMES NORMALLY FOR ONCE
 			GLogger.writeln(L"parseLauncherConfig_: key language has an invalid value: %s!", cfgLanguage);
 			return false;
 		}
 
-		const std::map<std::wstring, VoiceOverDataPair> localizationCodesLE1
+		const std::map<std::string, VoiceOverDataPair> localizationCodesLE1
 		{
-			{ L"en_US", VoiceOverDataPair{ L"INT", L"INT" } },
-			{ L"fr_FR", VoiceOverDataPair{ L"FR",  L"FE"  } },
-			{ L"de_DE", VoiceOverDataPair{ L"DE",  L"GE"  } },
-			{ L"it_IT", VoiceOverDataPair{ L"IT",  L"IE"  } },
-			{ L"ja_JP", VoiceOverDataPair{ L"JA",  L"JA"  } },
-			{ L"es_ES", VoiceOverDataPair{ L"ES",  L"ES"  } },
-			{ L"ru_RU", VoiceOverDataPair{ L"RA",  L"RU"  } },
-			{ L"pl_PL", VoiceOverDataPair{ L"PLPC", L"PL" } },
+			{ "en_US", VoiceOverDataPair{ L"INT", L"INT" } },
+			{ "fr_FR", VoiceOverDataPair{ L"FR",  L"FE"  } },
+			{ "de_DE", VoiceOverDataPair{ L"DE",  L"GE"  } },
+			{ "it_IT", VoiceOverDataPair{ L"IT",  L"IE"  } },
+			{ "ja_JP", VoiceOverDataPair{ L"JA",  L"JA"  } },
+			{ "es_ES", VoiceOverDataPair{ L"ES",  L"ES"  } },
+			{ "ru_RU", VoiceOverDataPair{ L"RA",  L"RU"  } },
+			{ "pl_PL", VoiceOverDataPair{ L"PLPC", L"PL" } },
 		};
-		const std::map<std::wstring, VoiceOverDataPair> localizationCodesLE2
+		const std::map<std::string, VoiceOverDataPair> localizationCodesLE2
 		{
-			{ L"en_US", VoiceOverDataPair{ L"INT", L"INT" } },
-			{ L"fr_FR", VoiceOverDataPair{ L"FRA", L"FRE" } },
-			{ L"de_DE", VoiceOverDataPair{ L"DEU", L"DEE" } },
-			{ L"it_IT", VoiceOverDataPair{ L"ITA", L"ITE" } },
-			{ L"ja_JP", VoiceOverDataPair{ L"JPN", L"JPN" } },
-			{ L"es_ES", VoiceOverDataPair{ L"ESN", L"ESN" } },
-			{ L"ru_RU", VoiceOverDataPair{ L"RUS", L"RUS" } },
-			{ L"pl_PL", VoiceOverDataPair{ L"POL", L"POE" } },
+			{ "en_US", VoiceOverDataPair{ L"INT", L"INT" } },
+			{ "fr_FR", VoiceOverDataPair{ L"FRA", L"FRE" } },
+			{ "de_DE", VoiceOverDataPair{ L"DEU", L"DEE" } },
+			{ "it_IT", VoiceOverDataPair{ L"ITA", L"ITE" } },
+			{ "ja_JP", VoiceOverDataPair{ L"JPN", L"JPN" } },
+			{ "es_ES", VoiceOverDataPair{ L"ESN", L"ESN" } },
+			{ "ru_RU", VoiceOverDataPair{ L"RUS", L"RUS" } },
+			{ "pl_PL", VoiceOverDataPair{ L"POL", L"POE" } },
 		};
-		const std::map<std::wstring, VoiceOverDataPair> localizationCodesLE3
+		const std::map<std::string, VoiceOverDataPair> localizationCodesLE3
 		{
-			{ L"en_US", VoiceOverDataPair{ L"INT", L"INT" } },
-			{ L"fr_FR", VoiceOverDataPair{ L"FRA", L"FRE" } },
-			{ L"de_DE", VoiceOverDataPair{ L"DEU", L"DEE" } },
-			{ L"it_IT", VoiceOverDataPair{ L"ITA", L"ITE" } },
-			{ L"ja_JP", VoiceOverDataPair{ L"JPN", L"JPN" } },
-			{ L"es_ES", VoiceOverDataPair{ L"ESN", L"ESN" } },
-			{ L"ru_RU", VoiceOverDataPair{ L"RUS", L"RUS" } },
-			{ L"pl_PL", VoiceOverDataPair{ L"POL", L"POL" } },
+			{ "en_US", VoiceOverDataPair{ L"INT", L"INT" } },
+			{ "fr_FR", VoiceOverDataPair{ L"FRA", L"FRE" } },
+			{ "de_DE", VoiceOverDataPair{ L"DEU", L"DEE" } },
+			{ "it_IT", VoiceOverDataPair{ L"ITA", L"ITE" } },
+			{ "ja_JP", VoiceOverDataPair{ L"JPN", L"JPN" } },
+			{ "es_ES", VoiceOverDataPair{ L"ESN", L"ESN" } },
+			{ "ru_RU", VoiceOverDataPair{ L"RUS", L"RUS" } },
+			{ "pl_PL", VoiceOverDataPair{ L"POL", L"POL" } },
 		};
 
-		subtitlesSize = cfgSubtitlesSize;
-		bool useInternationalVO = !wcscmp(cfgEnglishVOEnabled, L"true");
+		// Convert to wstring - used by launcher code which is unicode
+		std::string s(cfgSubtitlesSize);
+		subtitlesSize.assign(s.begin(), s.end());
+		
+		bool useInternationalVO = !strcmp(cfgEnglishVOEnabled, "true");
 
 
 		// Extra params.

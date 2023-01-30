@@ -1,6 +1,6 @@
 #pragma once
 
-#define LEBINKPROXY_VERSION  L"2.0.0.10"
+#define LEBINKPROXY_VERSION  L"2.0.0.11"
 #define LEBINKPROXY_BUILDTM  __DATE__ " " __TIME__
 
 #ifdef ASI_DEBUG
