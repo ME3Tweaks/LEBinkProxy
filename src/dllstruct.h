@@ -53,22 +53,23 @@ private:
     __forceinline
     void associateWindowTitle_(wchar_t* exeName, wchar_t* winTitle)
     {
-        if (0 == wcscmp(exeName, LEL_ExecutableName))
+        GLogger.writeln(L"..AssociateWindowTitle: using new (less strict) window name match");
+        if (exeName == wcsstr(exeName, LEL_ExecutableStem))
         {
             wcscpy(winTitle, LEL_WindowTitle);
             Game = LEGameVersion::Launcher;
         }
-        else if (0 == wcscmp(exeName, LE1_ExecutableName))
+        else if (exeName == wcsstr(exeName, LE1_ExecutableStem))
         {
             wcscpy(winTitle, LE1_WindowTitle);
             Game = LEGameVersion::LE1;
         }
-        else if (0 == wcscmp(exeName, LE2_ExecutableName))
+        else if (exeName == wcsstr(exeName, LE2_ExecutableStem))
         {
             wcscpy(winTitle, LE2_WindowTitle);
             Game = LEGameVersion::LE2;
         }
-        else if (0 == wcscmp(exeName, LE3_ExecutableName))
+        else if (exeName == wcsstr(exeName, LE3_ExecutableStem))
         {
             wcscpy(winTitle, LE3_WindowTitle);
             Game = LEGameVersion::LE3;
@@ -79,6 +80,8 @@ private:
             Game = LEGameVersion::Unsupported;
             exit(-1);
         }
+
+        GLogger.writeln(L"..AssociateWindowTitle: detected game index = %d", static_cast<int>(Game));
     }
 
     /**
