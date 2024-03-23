@@ -1,55 +1,139 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    <Filter Include="minhook">
+      <UniqueIdentifier>{31a7003b-4515-4290-9220-ef725266e869}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="minhook\include">
+      <UniqueIdentifier>{f54185b1-2139-4d76-a60b-676b5bb337eb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="minhook\src">
+      <UniqueIdentifier>{03106174-4302-4a3d-8351-1d7a2f5be7dd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="minhook\src\hde">
+      <UniqueIdentifier>{ccd454fa-ab5f-4487-85cf-a5584efc66e5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{a8eea091-5d79-4f47-9e38-e2b18da6057c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\conf">
+      <UniqueIdentifier>{7504eb56-dbd1-402c-bea5-274e1fc86a16}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\modules">
+      <UniqueIdentifier>{01f83c21-6718-46e5-b76c-99950a7cc1d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\spi">
+      <UniqueIdentifier>{6c3cb3f2-6fcf-4f0c-a071-12987835c439}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\utils">
+      <UniqueIdentifier>{7883b713-f8f9-4512-a636-835ae70c7aaf}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="minhook\src\hde\hde64.c">
-      <Filter>Source Files</Filter>
+      <Filter>minhook\src\hde</Filter>
     </ClCompile>
     <ClCompile Include="src\dllmain.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="minhook\include\MinHook.h" />
-    <ClInclude Include="minhook\src\hde\hde64.h" />
-    <ClInclude Include="minhook\src\hde\pstdint.h" />
-    <ClInclude Include="minhook\src\hde\table64.h" />
-    <ClInclude Include="minhook\src\buffer.h" />
-    <ClInclude Include="minhook\src\trampoline.h" />
-    <ClInclude Include="src\drm.h" />
-    <ClInclude Include="src\ue_types.h" />
-    <ClInclude Include="src\modules\launcher_args.h" />
-    <ClInclude Include="src\modules\asi_loader.h" />
-    <ClInclude Include="src\utils\memory.h" />
-    <ClInclude Include="src\dllexports.h" />
-    <ClInclude Include="src\utils\io.h" />
-    <ClInclude Include="src\conf\patterns.h" />
-    <ClInclude Include="src\conf\version.h" />
-    <ClInclude Include="src\utils\event.h" />
-    <ClInclude Include="src\modules\_base.h" />
-    <ClInclude Include="src\dllstruct.h" />
-    <ClInclude Include="src\gamever.h" />
-    <ClInclude Include="src\utils\hook.h" />
-    <ClInclude Include="src\modules\console_enabler.h" />
-    <ClInclude Include="src\modules\spi.h" />
-    <ClInclude Include="src\spi.h" />
-    <ClInclude Include="src\spi\implementation.h" />
-    <ClInclude Include="src\spi\interface.h" />
-    <ClInclude Include="src\utils\classutils.h" />
-    <ClInclude Include="src\spi\shared_hook_manager.h" />
-    <ClInclude Include="src\spi\shallow_implementation.h" />
+    <ClInclude Include="minhook\include\MinHook.h">
+      <Filter>minhook\include</Filter>
+    </ClInclude>
+    <ClInclude Include="minhook\src\buffer.h">
+      <Filter>minhook\src</Filter>
+    </ClInclude>
+    <ClInclude Include="minhook\src\trampoline.h">
+      <Filter>minhook\src</Filter>
+    </ClInclude>
+    <ClInclude Include="minhook\src\hde\hde64.h">
+      <Filter>minhook\src\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="minhook\src\hde\pstdint.h">
+      <Filter>minhook\src\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="minhook\src\hde\table64.h">
+      <Filter>minhook\src\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dllexports.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dllstruct.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\drm.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gamever.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ue_types.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\spi.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\conf\version.h">
+      <Filter>src\conf</Filter>
+    </ClInclude>
+    <ClInclude Include="src\conf\patterns.h">
+      <Filter>src\conf</Filter>
+    </ClInclude>
+    <ClInclude Include="src\modules\_base.h">
+      <Filter>src\modules</Filter>
+    </ClInclude>
+    <ClInclude Include="src\modules\asi_loader.h">
+      <Filter>src\modules</Filter>
+    </ClInclude>
+    <ClInclude Include="src\modules\console_enabler.h">
+      <Filter>src\modules</Filter>
+    </ClInclude>
+    <ClInclude Include="src\modules\launcher_args.h">
+      <Filter>src\modules</Filter>
+    </ClInclude>
+    <ClInclude Include="src\modules\launcher_working_dir_fix.h">
+      <Filter>src\modules</Filter>
+    </ClInclude>
+    <ClInclude Include="src\spi\implementation.h">
+      <Filter>src\spi</Filter>
+    </ClInclude>
+    <ClInclude Include="src\spi\interface.h">
+      <Filter>src\spi</Filter>
+    </ClInclude>
+    <ClInclude Include="src\spi\shallow_implementation.h">
+      <Filter>src\spi</Filter>
+    </ClInclude>
+    <ClInclude Include="src\spi\shared_hook_manager.h">
+      <Filter>src\spi</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\classutils.h">
+      <Filter>src\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\event.h">
+      <Filter>src\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\hook.h">
+      <Filter>src\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\io.h">
+      <Filter>src\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\memory.h">
+      <Filter>src\utils</Filter>
+    </ClInclude>
     <ClInclude Include="resource.h" />
-    <ClInclude Include="src\modules\launcher_working_dir_fix.h" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="minhook\AUTHORS.txt" />
-    <Text Include="minhook\LICENSE.txt" />
-    <Text Include="minhook\CHANGES.txt" />
+    <Text Include="minhook\AUTHORS.txt">
+      <Filter>minhook</Filter>
+    </Text>
+    <Text Include="minhook\CHANGES.txt">
+      <Filter>minhook</Filter>
+    </Text>
+    <Text Include="minhook\LICENSE.txt">
+      <Filter>minhook</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />

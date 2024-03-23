@@ -113,7 +113,6 @@
     <ClInclude Include="src\gamever.h" />
     <ClInclude Include="src\modules\console_enabler.h" />
     <ClInclude Include="src\modules\launcher_working_dir_fix.h" />
-    <ClInclude Include="src\modules\spi.h" />
     <ClInclude Include="src\modules\_base.h" />
     <ClInclude Include="src\spi.h" />
     <ClInclude Include="src\spi\interface.h" />
