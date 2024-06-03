@@ -1,8 +1,6 @@
 # LEBinkProxy
 
-[![Mass Effect Modding Discord community](https://i.imgur.com/eDRpjZS.jpg)](https://discord.gg/su8XjdUQPw)
-
-A small proxy DLL which enables dev. console in Mass Effect 1, 2 and 3 (Legendary Edition).
+A small proxy DLL which enables dev. console in Mass Effect 1, 2 and 3 (Legendary Edition). Originally written by d00telemental. Compiled versions of this dll are distributed through ME3Tweaks Mod Manager.
 
 ## Usage
 
