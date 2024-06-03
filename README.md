@@ -8,7 +8,9 @@ Additionally provides the following features:
  - Command line argument pass through to the game from the launcher
 
 ## Usage
+ME3Tweaks Mod Manager will automatically install this dll on any mod install, or when installed via the tools menu for `Bink bypass`. 
 
+Alternatively, you can install it manually:
    1. In your game binary directory (`Game\ME?\Binaries\Win64`), rename `bink2w64.dll` into `bink2w64_original.dll`.
    2. Copy the built proxy DLL (`Release\bink2w64.dll`) into the same folder.
    3. Launch the game.
