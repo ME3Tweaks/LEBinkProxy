@@ -2,6 +2,11 @@
 
 A small proxy DLL which enables dev. console in Mass Effect 1, 2 and 3 (Legendary Edition). Originally written by d00telemental. Compiled versions of this dll are distributed through ME3Tweaks Mod Manager.
 
+Additionally provides the following features:
+ - Minidumps on application crash (with -enableminidumps command line argument)
+ - Autoboot to a specific game when in the launcher using -game 1/2/3 and -autoterminate
+ - Command line argument pass through to the game from the launcher
+
 ## Usage
 
    1. In your game binary directory (`Game\ME?\Binaries\Win64`), rename `bink2w64.dll` into `bink2w64_original.dll`.
