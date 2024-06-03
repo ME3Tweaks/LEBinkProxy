@@ -1,4 +1,6 @@
 .vs/
 x64/
-*.vcxproj.user
+*.aps
+*.bat
 *.ps1
+*.vcxproj.user

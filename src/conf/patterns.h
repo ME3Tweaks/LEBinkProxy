@@ -9,6 +9,7 @@
 // ==============================
 
 #define LEL_ExecutableName            L"MassEffectLauncher.exe"
+#define LEL_ExecutableStem            L"MassEffectLauncher"
 #define LEL_WindowTitle               L"Mass Effect Launcher"
 
 #define LEL_DRMTest_Pattern     (BYTE*)"\x00\x00\x48\xc7\x44\x24\x20\xfe\xff\xff\xff\x48\x89\x58\x18\x48\x89\x70\x20"
@@ -19,6 +20,7 @@
 // ==============================
 
 #define LE1_ExecutableName            L"MassEffect1.exe"
+#define LE1_ExecutableStem            L"MassEffect1"
 #define LE1_WindowTitle               L"Mass Effect"
 
 #define LE1_UFunctionBind_Pattern     INTERNAL_LEx_UFunctionBind_Pattern
@@ -32,6 +34,7 @@
 // ==============================
 
 #define LE2_ExecutableName            L"MassEffect2.exe"
+#define LE2_ExecutableStem            L"MassEffect2"
 #define LE2_WindowTitle               L"Mass Effect 2"
 
 #define LE2_UFunctionBind_Pattern     INTERNAL_LEx_UFunctionBind_Pattern
@@ -46,6 +49,7 @@
 // ==============================
 
 #define LE3_ExecutableName            L"MassEffect3.exe"
+#define LE3_ExecutableStem            L"MassEffect3"
 #define LE3_WindowTitle               L"Mass Effect 3"
 
 #define LE3_UFunctionBind_Pattern     INTERNAL_LEx_UFunctionBind_Pattern

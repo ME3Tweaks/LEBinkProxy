@@ -133,7 +133,7 @@ namespace UE
     // A GNative function which takes no arguments and returns TRUE.
     void AlwaysPositiveNative(UObjectPartial* pObject, void* pFrame, void* pResult)
     {
-        GLogger.writeln(L"UE::AlwaysPositiveNative: called for %s.", pObject->GetName());
+        //GLogger.writeln(L"UE::AlwaysPositiveNative: called for %s.", pObject->GetName());
 
         switch (GLEBinkProxy.Game)
         {
@@ -158,7 +158,7 @@ namespace UE
     // A GNative function which takes no arguments and returns FALSE.
     void AlwaysNegativeNative(UObjectPartial* pObject, void* pFrame, void* pResult)
     {
-        GLogger.writeln(L"UE::AlwaysNegativeNative: called for %s.", pObject->GetName());
+        //GLogger.writeln(L"UE::AlwaysNegativeNative: called for %s.", pObject->GetName());
 
         switch (GLEBinkProxy.Game)
         {
