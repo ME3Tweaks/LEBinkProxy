@@ -69,6 +69,7 @@ private:
             wcscpy(winTitle, LE2_WindowTitle);
             Game = LEGameVersion::LE2;
         }
+        // We don't use LMP here as ASIs are the same. We only use LMP for autoboot
         else if (exeName == wcsstr(exeName, LE3_ExecutableStem))
         {
             wcscpy(winTitle, LE3_WindowTitle);

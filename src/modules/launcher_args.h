@@ -126,8 +126,8 @@ private:
 			auto numStrWCPtr = startWCPtr + 7;
 			auto gameNum = wcstol(numStrWCPtr, nullptr, 10);
 
-			// If the game number was parsed to be in [1;3], return it via out arg, and check for autoterminate flag.
-			if (gameNum >= 1 && gameNum <= 3)
+			// If the game number was parsed to be in [1;4], return it via out arg, and check for autoterminate flag.
+			if (gameNum >= 1 && gameNum <= 4)
 			{
 				this->launchTarget_ = static_cast<LEGameVersion>(gameNum);
 				ClipOutSubString(startCmdLine, wcsstr(startCmdLine, L" -game") - startCmdLine, 8);
@@ -442,6 +442,7 @@ private:
 			break;
 		}
 		case LEGameVersion::LE3:
+		case LEGameVersion::LMP:
 		{
 			const auto& pair = localizationCodesLE3.at(cfgLanguage);
 			overrideLang = (useInternationalVO ? pair.InternationalVO : pair.LocalVO).c_str();
@@ -483,6 +484,7 @@ private:
 		case LEGameVersion::LE1: return L"../ME1/Binaries/Win64/MassEffect1.exe";
 		case LEGameVersion::LE2: return L"../ME2/Binaries/Win64/MassEffect2.exe";
 		case LEGameVersion::LE3: return L"../ME3/Binaries/Win64/MassEffect3.exe";
+		case LEGameVersion::LMP: return L"../LMP/Binaries/Win64/MassEffect3.exe";
 		default:
 			return nullptr;
 		}
@@ -494,6 +496,7 @@ private:
 		case LEGameVersion::LE1: return L"../ME1/Binaries/Win64";
 		case LEGameVersion::LE2: return L"../ME2/Binaries/Win64";
 		case LEGameVersion::LE3: return L"../ME3/Binaries/Win64";
+		case LEGameVersion::LMP: return L"../LMP/Binaries/Win64";
 		default:
 			return nullptr;
 		}
@@ -531,7 +534,8 @@ public:
 		// This is a redundant check and it's okay.
 		if (this->launchTarget_ != LEGameVersion::LE1
 			&& this->launchTarget_ != LEGameVersion::LE2
-			&& this->launchTarget_ != LEGameVersion::LE3)
+			&& this->launchTarget_ != LEGameVersion::LE3
+			&& this->launchTarget_ != LEGameVersion::LMP)
 		{
 			GLogger.writeln(L"LauncherArgsModule.Activate: options detected but invalid launch target, aborting...");
 			return false;
@@ -567,6 +571,7 @@ public:
 				wsprintf(this->cmdArgsBuffer_, L" -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %ls -OVERRIDELANGUAGE=%ls  %ls", this->subtitleSize_, this->bootLanguage_, GLEBinkProxy.CmdLine);
 				break;
 			case LEGameVersion::LE3:
+			case LEGameVersion::LMP:
 				wsprintf(this->cmdArgsBuffer_, L" -NoHomeDir -SeekFreeLoadingPCConsole -locale {locale} -Subtitles %ls -language=%ls  %ls", this->subtitleSize_, this->bootLanguage_, GLEBinkProxy.CmdLine);
 				break;
 			}

@@ -187,6 +187,7 @@ void __stdcall OnAttach()
 	case LEGameVersion::LE1:
 	case LEGameVersion::LE2:
 	case LEGameVersion::LE3:
+	case LEGameVersion::LMP:
 	{
 		// Keep trying to find a pattern we are *almost* guaranteed to have until we find it.
 		DRM::WaitForDRMv3();
