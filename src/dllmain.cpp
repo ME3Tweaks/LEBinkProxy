@@ -220,6 +220,9 @@ void __stdcall OnAttach()
 			GLogger.writeln(L"OnAttach: ERROR: error fixing launcher working directory issue!");
 		}
 
+		// Load all native mods that declare being post-drm.
+		GLEBinkProxy.AsiLoader->PostLoad(GLEBinkProxy.SPI);
+
 		break;
 	}
 	default:
