@@ -187,6 +187,7 @@ void __stdcall OnAttach()
 	case LEGameVersion::LE1:
 	case LEGameVersion::LE2:
 	case LEGameVersion::LE3:
+	case LEGameVersion::LMP:
 	{
 		// Keep trying to find a pattern we are *almost* guaranteed to have until we find it.
 		DRM::WaitForDRMv3();
@@ -218,6 +219,9 @@ void __stdcall OnAttach()
 		{
 			GLogger.writeln(L"OnAttach: ERROR: error fixing launcher working directory issue!");
 		}
+
+		// Load all native mods that declare being post-drm.
+		GLEBinkProxy.AsiLoader->PostLoad(GLEBinkProxy.SPI);
 
 		break;
 	}

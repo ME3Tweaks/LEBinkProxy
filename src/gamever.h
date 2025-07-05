@@ -6,5 +6,6 @@ enum class LEGameVersion
     LE1 = 1,
     LE2 = 2,
     LE3 = 3,
-    Unsupported = 4
+    LMP = 4,
+    Unsupported = 5
 };
