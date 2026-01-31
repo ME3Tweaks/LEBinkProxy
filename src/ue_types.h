@@ -188,6 +188,7 @@ namespace UE
         UFunctionBind_orig(pFunction);
 
         auto name = pFunction->GetName();
+        // GLogger.writeln(L"%s = 0x%p", name, ((UFunctionPartialLE3*)pFunction)->Func);
 
         if (0 == wcscmp(name, L"IsShippingPCBuild") || 0 == wcscmp(name, L"IsShippingBuild")
             || 0 == wcscmp(name, L"IsFinalReleaseDebugConsoleBuild"))
