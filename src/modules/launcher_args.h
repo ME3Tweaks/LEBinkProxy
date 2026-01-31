@@ -590,7 +590,7 @@ public:
 			{
 				GLogger.writeln(L"LauncherArgsModule.Activate: target game executable does not exist at path %s, aborting...", launchParams_.GameExePath);
 			}
-			return;
+			return false;
 		}
 		// Allow debugging functionality.
 		this->overrideForDebug_();
