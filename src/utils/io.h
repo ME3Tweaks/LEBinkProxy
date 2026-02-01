@@ -54,7 +54,14 @@ namespace Utils
 #else
 #define ASIOUT FGLog
 
-		FGLog = fopen(ASI_LOG_FNAME, "w");
+        // Ensure Logs directory exists (ignore error if it already exists)
+        CreateDirectoryA("Logs", NULL);
+
+        // Build path: Logs\<filename>
+        char logPath[MAX_PATH];
+        _snprintf_s(logPath, MAX_PATH, _TRUNCATE, "Logs\\%s", ASI_LOG_FNAME);
+
+        FGLog = fopen(logPath, "w");
         if (FGLog == NULL)
         {
             wchar_t errorBuffer[512];
