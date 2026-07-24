@@ -100,6 +100,7 @@
   <ItemGroup>
     <ClCompile Include="src\dllmain.cpp" />
     <ClCompile Include="minhook\src\hde\hde64.c" />
+    <ClCompile Include="src\drm.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="minhook\include\MinHook.h" />

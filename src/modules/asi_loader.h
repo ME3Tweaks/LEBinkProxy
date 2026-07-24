@@ -453,9 +453,6 @@ public:
             }
         }
 
-        //// Give async plugins some time to do things.
-        Sleep(250);
-
         return true;
     }
     bool PostLoad(ISharedProxyInterface* interfacePtr)
@@ -472,9 +469,6 @@ public:
                 GLogger.writeln(L"PostLoad: OnAttach dispatch succeeded [%s] (mode = %d)", loadInfo.FileName, loadInfo.IsAsyncAttachMode);
             }
         }
-
-        //// Give async plugins some time to do things.
-        Sleep(250);
 
         return true;
     }
