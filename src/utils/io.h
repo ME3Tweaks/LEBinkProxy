@@ -11,20 +11,18 @@
 #include <thread>
 
 
-#ifndef ASI_LOG_FNAME
-#error Must set ASI log filename!
-#endif
+#define ASI_LOG_FNAME "bink2w64_proxy.log"
 
 #define ASI_IO_LOCK(MUTEX) const std::lock_guard<std::mutex> lock(MUTEX);
 
 namespace Utils
 {
-    FILE* FGLog = nullptr;
-	std::mutex GOpenConsoleMtx;
-	std::mutex GCloseConsoleMtx;
-	std::mutex GWriteLineMtx;
+    inline FILE* FGLog = nullptr;
+	inline std::mutex GOpenConsoleMtx;
+	inline std::mutex GCloseConsoleMtx;
+	inline std::mutex GWriteLineMtx;
 
-	void OpenConsole(FILE* out, FILE* err)
+	inline void OpenConsole(FILE* out, FILE* err)
 	{
 		ASI_IO_LOCK(GOpenConsoleMtx);
 
@@ -38,7 +36,7 @@ namespace Utils
 		GetConsoleScreenBufferInfo(console, &lpConsoleScreenBufferInfo);
 		SetConsoleScreenBufferSize(console, { lpConsoleScreenBufferInfo.dwSize.X, 30000 });
 	}
-	void CloseConsole()
+	inline void CloseConsole()
 	{
 		ASI_IO_LOCK(GCloseConsoleMtx);
 		FreeConsole();
@@ -46,7 +44,7 @@ namespace Utils
 
     // Open a console window and redirect output to it.
     // In release mode, redirect all output to a file.
-    void SetupOutput()
+    inline void SetupOutput()
     {
 #ifdef ASI_DEBUG
 #define ASIOUT stdout
@@ -64,7 +62,7 @@ namespace Utils
 #endif
     }
     // Close the console window.
-    void TeardownOutput()
+    inline void TeardownOutput()
     {
 #ifdef ASI_DEBUG
 		CloseConsole();
@@ -125,4 +123,4 @@ namespace Utils
 }
 
 // Global instance.
-static Utils::RuntimeLogger GLogger;
+inline Utils::RuntimeLogger GLogger;

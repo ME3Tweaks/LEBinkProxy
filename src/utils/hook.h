@@ -58,4 +58,4 @@ namespace Utils
 
 // Global instance.
 
-Utils::HookManager GHookManager;
+inline Utils::HookManager GHookManager;

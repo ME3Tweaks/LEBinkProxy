@@ -162,7 +162,7 @@ namespace SPI
             }
 
             *outGameVersion = static_cast<SPIGameVersion>(GLEBinkProxy.Game);
-            return SPIReturn::FailureUnsupportedYet;
+            return SPIReturn::Success;
         }
 
         SPIDEFN FindPattern(void** outOffsetPtr, char* combinedPattern)

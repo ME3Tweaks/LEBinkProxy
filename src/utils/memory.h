@@ -9,14 +9,14 @@
 
 namespace Utils
 {
-    bool IsExecutableAddress(LPVOID pAddress)
+    inline bool IsExecutableAddress(LPVOID pAddress)
     {
         MEMORY_BASIC_INFORMATION mi;
         VirtualQuery(pAddress, &mi, sizeof(mi));
         return (mi.State == MEM_COMMIT && (mi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)));
     }
 
-    HMODULE GetGameModuleRange(BYTE** pStart, BYTE** pEnd)
+    inline HMODULE GetGameModuleRange(BYTE** pStart, BYTE** pEnd)
     {
         HMODULE exeModule = GetModuleHandle(nullptr);
         MODULEINFO exeModuleInfo;
@@ -34,7 +34,7 @@ namespace Utils
     /// Scan the game module for a sequence of bytes defined by a pattern and a mask.
     /// TODO: refactor it to use PEiD patterns.
     /// </summary>
-    BYTE* ScanProcess(BYTE* pattern, BYTE* mask)
+    inline BYTE* ScanProcess(BYTE* pattern, BYTE* mask)
     {
         size_t patternLength = strlen((char*)mask);
 
