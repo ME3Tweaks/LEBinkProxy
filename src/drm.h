@@ -46,5 +46,5 @@ namespace DRM
 
     void WaitForDRMv3();
 
-    void InstallDRMv4Hook(void* detour, void** original);
+    bool InstallDRMv4Hook(void* detour, void** original);
 }

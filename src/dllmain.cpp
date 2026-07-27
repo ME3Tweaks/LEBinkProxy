@@ -129,6 +129,25 @@ void __stdcall AsyncAttach()
 	// Handle logic depending on the attached-to exe.
 	switch (GLEBinkProxy.Game)
 	{
+	case LEGameVersion::LE1:
+	case LEGameVersion::LE2:
+	case LEGameVersion::LE3:
+	{
+		// Keep trying to find a pattern we are *almost* guaranteed to have until we find it.
+		DRM::WaitForDRMv3();
+
+		// Unlock the console.
+		if (!GLEBinkProxy.ConsoleEnabler->Activate())
+		{
+			GLogger.writeln(L"OnAttach: ERROR: console bypass installation failed, aborting!");
+			break;
+		}
+
+		// Load all native mods that declare being post-drm.
+		GLEBinkProxy.AsiLoader->PostLoad(GLEBinkProxy.SPI);
+
+		break;
+	}
 	case LEGameVersion::Launcher:
 	{
 		// Keep trying to find a pattern we are *almost* guaranteed to have until we find it.
@@ -216,7 +235,6 @@ bool SyncAttach()
 	if (!GLEBinkProxy.AsiLoader->Activate())
 	{
 		GLogger.writeln(L"OnAttach: ERROR: loading of one or more ASI plugins failed!");
-		return false;
 	}
 
 	GLogger.writeln(L"OnAttach: got to preload / 0x%p", GLEBinkProxy);
@@ -229,12 +247,14 @@ bool SyncAttach()
 	 || GLEBinkProxy.Game == LEGameVersion::LE2 
 	 || GLEBinkProxy.Game == LEGameVersion::LE3)
 	{
-		DRM::InstallDRMv4Hook(PostDRM_hook, reinterpret_cast<void**>(&PostDRM_hook_orig));
+		if (DRM::InstallDRMv4Hook(PostDRM_hook, reinterpret_cast<void**>(&PostDRM_hook_orig)))
+		{
+			return true;
+		}
+		//fallback to older method if the hook fails
 	}
-	else 
-	{
-		CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)AsyncAttach, nullptr, 0, nullptr);
-	}
+
+	CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)AsyncAttach, nullptr, 0, nullptr);
 
 	return true;
 }

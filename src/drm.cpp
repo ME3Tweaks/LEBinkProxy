@@ -87,19 +87,20 @@ BYTE* GetActivatorModuleBase() {
     return BaseAddress;
 }
 
-void DRM::InstallDRMv4Hook(void* detour, void** original)
+bool DRM::InstallDRMv4Hook(void* detour, void** original)
 {
 	auto const ActivatorBase = GetActivatorModuleBase();
 	if (!ActivatorBase) {
 		GLogger.writeln(L"InstallDRMv4Hook: ERROR: failed to find Activation64.dll base address.");
-		return;
+		return false;
 	}
 	auto const Offset = ActivatorBase + 0x11480;
 	auto spiReturn = GLEBinkProxy.SPI->InstallHook("PostDRM_hook", Offset, detour, original);
     if (spiReturn != SPIReturn::Success)
     {
 		GLogger.writeln(L"InstallDRMv4Hook: ERROR: failed to install post-drm hook (code = %d).", static_cast<int>(spiReturn));
-		return;
+		return false;
     }
 	GLogger.writeln(L"InstallDRMv4Hook: successfully installed hook on Activation64.dll.");
+	return true;
 }
