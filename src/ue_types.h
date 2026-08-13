@@ -31,12 +31,12 @@ namespace UE
     // A prototype of a function which LE1 uses to decode
     // a char name from a FNameEntry structure.
     typedef void* (__stdcall* tGetName)(void* name, wchar_t* outBuffer);
-    tGetName GetName = nullptr;
+    inline tGetName GetName = nullptr;
 
     // A prototype of a function which LE2/3 use to decode
     // a char name from a FNameEntry structure.
     typedef void* (__stdcall* tNewGetName)(void* name, wchar_t* outBuffer);
-    tNewGetName NewGetName = nullptr;
+    inline tNewGetName NewGetName = nullptr;
 
     // Note:
     // I've got a pretty solid way of getting names without hooking ToString (^),
@@ -47,8 +47,8 @@ namespace UE
     // A prototype of UFunction::Bind method used to
     // bind UScript functions to native implementations.
     typedef void(__thiscall* tUFunctionBind)(void* pFunction);
-    tUFunctionBind UFunctionBind = nullptr;
-    tUFunctionBind UFunctionBind_orig = nullptr;
+    inline tUFunctionBind UFunctionBind = nullptr;
+    inline tUFunctionBind UFunctionBind_orig = nullptr;
 
 
     // A partial representation of a UObject class.
@@ -131,7 +131,7 @@ namespace UE
 
 
     // A GNative function which takes no arguments and returns TRUE.
-    void AlwaysPositiveNative(UObjectPartial* pObject, void* pFrame, void* pResult)
+    inline void AlwaysPositiveNative(UObjectPartial* pObject, void* pFrame, void* pResult)
     {
         //GLogger.writeln(L"UE::AlwaysPositiveNative: called for %s.", pObject->GetName());
 
@@ -156,7 +156,7 @@ namespace UE
     }
 
     // A GNative function which takes no arguments and returns FALSE.
-    void AlwaysNegativeNative(UObjectPartial* pObject, void* pFrame, void* pResult)
+    inline void AlwaysNegativeNative(UObjectPartial* pObject, void* pFrame, void* pResult)
     {
         //GLogger.writeln(L"UE::AlwaysNegativeNative: called for %s.", pObject->GetName());
 
@@ -183,7 +183,7 @@ namespace UE
 
     // A hooked wrapper around UFunction::Bind which calls the original and then
     // binds IsShippingPCBuild and IsFinalReleaseDebugConsoleBuild to AlwaysPositiveNative.
-    void HookedUFunctionBind(UObjectPartial* pFunction)
+    inline void HookedUFunctionBind(UObjectPartial* pFunction)
     {
         UFunctionBind_orig(pFunction);
 

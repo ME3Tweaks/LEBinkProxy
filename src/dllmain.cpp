@@ -1,5 +1,4 @@
 #include "dllexports.h"
-#define ASI_LOG_FNAME "bink2w64_proxy.log"
 
 #include <Windows.h>
 #include <filesystem>
@@ -125,62 +124,8 @@ void SetWorkingDirectory() {
 	SetCurrentDirectoryW(exePath.parent_path().c_str());
 }
 
-void __stdcall OnAttach()
+void __stdcall AsyncAttach()
 {
-	// Open console or log.
-	Utils::SetupOutput();
-
-	GLogger.writeln(L"Attached...\n"
-		L"LEBinkProxy by d00telemental/ME3Tweaks\n"
-		L"Version=\"" LEBINKPROXY_VERSION L"\", built=\"" LEBINKPROXY_BUILDTM L"\", config=\"" LEBINKPROXY_BUILDMD L"\"\n"
-		L"Only trust distributions installed by ME3Tweaks Mod Manager 7.0+.");
-
-	if (nullptr != std::wcsstr(GetCommandLineW(), L" -enableminidumps")) {
-		// Register exception handler for memory dumps.
-		// Removed on DETACH.
-		GLogger.writeln(L"Minidumps are enabled for this session");
-		SetVectoredExceptionHandler();
-	}
-
-	// Initialize MinHook.
-	MH_STATUS mhStatus = MH_Initialize();
-	if (mhStatus != MH_OK)
-	{
-		GLogger.writeln(L"OnAttach: ERROR: failed to initialize the hooking library (code = %d).", mhStatus);
-		return;
-	}
-
-	// Initialize global settings.
-	GLEBinkProxy.Initialize();
-
-	// Register modules (console enabler, launcher arg handler, asi loader).
-	GLEBinkProxy.AsiLoader = new AsiLoaderModule;
-	GLEBinkProxy.ConsoleEnabler = new ConsoleEnablerModule;
-	if (GLEBinkProxy.Game == LEGameVersion::Launcher)
-	{
-		GLEBinkProxy.LauncherArgs = new LauncherArgsModule;
-		GLEBinkProxy.LauncherFixer = new LauncherProcessLaunchWorkingDirFixModule;
-	}
-
-	// Spawn the SPI implementation.
-	GLEBinkProxy.SPI = new SPI::SharedProxyInterface();
-	GLogger.writeln(L"OnAttach: instanced the SPI! (ver = %d)", ASI_SPI_VERSION);
-
-	// Find all native mods and iteratively call LoadLibrary().
-	if (!GLEBinkProxy.AsiLoader->Activate())
-	{
-		GLogger.writeln(L"OnAttach: ERROR: loading of one or more ASI plugins failed!");
-	}
-
-	GLogger.writeln(L"OnAttach: got to preload / 0x%p", GLEBinkProxy);
-
-	// Load all native mods that declare being pre-drm.
-	// Post-drm mods are loaded in the switch below.
-	GLEBinkProxy.AsiLoader->PreLoad(GLEBinkProxy.SPI);
-
-	// Prevent the compiler from *potentially* reordering instructions before and after.
-	MemoryBarrier();
-
 	// Handle logic depending on the attached-to exe.
 	switch (GLEBinkProxy.Game)
 	{
@@ -235,6 +180,89 @@ void __stdcall OnAttach()
 	return;
 }
 
+using t_PostDRM_hook = void*(void*, char, size_t, void*);
+t_PostDRM_hook* PostDRM_hook_orig = nullptr;
+void* PostDRM_hook(void* param_1, char param_2, size_t param_3, void* param_4) 
+{
+	void* ret = PostDRM_hook_orig(param_1, param_2, param_3, param_4);
+	// Unlock the console.
+	if (!GLEBinkProxy.ConsoleEnabler->Activate())
+	{
+		GLogger.writeln(L"OnAttach: ERROR: console bypass installation failed");
+	}
+	GLEBinkProxy.AsiLoader->PostLoad(GLEBinkProxy.SPI);
+	return ret;
+}
+
+bool SyncAttach()
+{
+	// Open console or log.
+	Utils::SetupOutput();
+
+	GLogger.writeln(L"Attached...\n"
+		L"LEBinkProxy by d00telemental/ME3Tweaks\n"
+		L"Version=\"" LEBINKPROXY_VERSION L"\", built=\"" LEBINKPROXY_BUILDTM L"\", config=\"" LEBINKPROXY_BUILDMD L"\"\n"
+		L"Only trust distributions installed by ME3Tweaks Mod Manager 7.0+.");
+
+	if (nullptr != std::wcsstr(GetCommandLineW(), L" -enableminidumps")) {
+		// Register exception handler for memory dumps.
+		// Removed on DETACH.
+		GLogger.writeln(L"Minidumps are enabled for this session");
+		SetVectoredExceptionHandler();
+	}
+
+	// Initialize MinHook.
+	MH_STATUS mhStatus = MH_Initialize();
+	if (mhStatus != MH_OK)
+	{
+		GLogger.writeln(L"OnAttach: ERROR: failed to initialize the hooking library (code = %d).", mhStatus);
+		return false;
+	}
+
+	// Initialize global settings.
+	GLEBinkProxy.Initialize();
+
+	// Register modules (console enabler, launcher arg handler, asi loader).
+	GLEBinkProxy.AsiLoader = new AsiLoaderModule;
+	GLEBinkProxy.ConsoleEnabler = new ConsoleEnablerModule;
+	if (GLEBinkProxy.Game == LEGameVersion::Launcher)
+	{
+		GLEBinkProxy.LauncherArgs = new LauncherArgsModule;
+		GLEBinkProxy.LauncherFixer = new LauncherProcessLaunchWorkingDirFixModule;
+	}
+
+	// Spawn the SPI implementation.
+	GLEBinkProxy.SPI = new SPI::SharedProxyInterface();
+	GLogger.writeln(L"OnAttach: instanced the SPI! (ver = %d)", ASI_SPI_VERSION);
+
+	// Find all native mods and iteratively call LoadLibrary().
+	if (!GLEBinkProxy.AsiLoader->Activate())
+	{
+		GLogger.writeln(L"OnAttach: ERROR: loading of one or more ASI plugins failed!");
+	}
+
+	GLogger.writeln(L"OnAttach: got to preload / 0x%p", GLEBinkProxy);
+
+	// Load all native mods that declare being pre-drm.
+	// Post-drm mods are loaded in the switch below.
+	GLEBinkProxy.AsiLoader->PreLoad(GLEBinkProxy.SPI);
+
+	if (GLEBinkProxy.Game == LEGameVersion::LE1 
+	 || GLEBinkProxy.Game == LEGameVersion::LE2 
+	 || GLEBinkProxy.Game == LEGameVersion::LE3)
+	{
+		if (DRM::InstallDRMv4Hook(PostDRM_hook, reinterpret_cast<void**>(&PostDRM_hook_orig)))
+		{
+			return true;
+		}
+		//fallback to older method if the hook fails
+	}
+
+	CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)AsyncAttach, nullptr, 0, nullptr);
+
+	return true;
+}
+
 void __stdcall OnDetach()
 {
 	GLogger.writeln(L"OnDetach: entered...");
@@ -256,7 +284,7 @@ void __stdcall OnDetach()
 BOOL WINAPI DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved) {
 	switch (dwReason) {
 	case DLL_PROCESS_ATTACH:
-		CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)OnAttach, nullptr, 0, nullptr);
+		SyncAttach();
 		return TRUE;
 
 	case DLL_PROCESS_DETACH:

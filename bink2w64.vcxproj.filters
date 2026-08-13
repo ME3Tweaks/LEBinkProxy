@@ -36,6 +36,7 @@
     <ClCompile Include="src\dllmain.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\drm.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="minhook\include\MinHook.h">

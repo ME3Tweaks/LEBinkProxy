@@ -218,6 +218,8 @@ private:
     wchar_t asiRoot_[512];
     AsiInfoList pluginLoadInfos_;
     DWORD lastErrorCode_ = 0;
+	bool activatedPreloads_ = false;
+	bool activatedPostloads_ = false;
 
     // Methods.
 
@@ -440,6 +442,12 @@ public:
 
     bool PreLoad(ISharedProxyInterface* interfacePtr)
     {
+		if (activatedPreloads_)
+		{
+			GLogger.writeln(L"PreLoad: already activated, skipping...");
+			return true;
+		}
+        activatedPreloads_ = true;
         for (auto& loadInfo : pluginLoadInfos_)
         {
             if (loadInfo.ShouldPreload())
@@ -453,13 +461,16 @@ public:
             }
         }
 
-        //// Give async plugins some time to do things.
-        Sleep(250);
-
         return true;
     }
     bool PostLoad(ISharedProxyInterface* interfacePtr)
     {
+        if (activatedPostloads_)
+        {
+            GLogger.writeln(L"PostLoad: already activated, skipping...");
+            return true;
+        }
+        activatedPostloads_ = true;
         for (auto& loadInfo : pluginLoadInfos_)
         {
             if (loadInfo.ShouldPostload())
@@ -472,9 +483,6 @@ public:
                 GLogger.writeln(L"PostLoad: OnAttach dispatch succeeded [%s] (mode = %d)", loadInfo.FileName, loadInfo.IsAsyncAttachMode);
             }
         }
-
-        //// Give async plugins some time to do things.
-        Sleep(250);
 
         return true;
     }

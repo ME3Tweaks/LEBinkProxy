@@ -78,7 +78,7 @@ enum class SPIReturn : short
 /// Get a string describing an SPIReturn code.
 /// </summary>
 /// <returns>A const wide string</returns>
-const wchar_t* SPIReturnToString(SPIReturn code)
+inline const wchar_t* SPIReturnToString(SPIReturn code)
 {
     switch (code)
     {

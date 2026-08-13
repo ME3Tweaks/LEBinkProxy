@@ -12,8 +12,8 @@
 // These have to list outside the class or the actual hooking signature won't be correct
 typedef int (WINAPI* CREATEPROCESSA)(LPCSTR, LPSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES,
 	BOOL, DWORD, LPVOID, LPCSTR, LPSTARTUPINFOA, LPPROCESS_INFORMATION);
-CREATEPROCESSA CreateProcessA_orig = NULL;
-int WINAPI CreateProcessA_hook(LPCSTR lpApplicationName, LPSTR lpCommandLine,
+inline CREATEPROCESSA CreateProcessA_orig = NULL;
+inline int WINAPI CreateProcessA_hook(LPCSTR lpApplicationName, LPSTR lpCommandLine,
 	LPSECURITY_ATTRIBUTES lpProcessAttributes,
 	LPSECURITY_ATTRIBUTES lpThreadAttributes,
 	BOOL bInheritHandles,

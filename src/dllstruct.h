@@ -171,7 +171,7 @@ private:
         auto leargs = GetStringValueFromHKCU(L"SOFTWARE\\ME3Tweaks", L"LEAutobootArgs");
         if (leargs.length() > 0)
         {
-            CmdLine = new wchar_t[leargs.length()];
+            CmdLine = new wchar_t[leargs.length() + 1];
             wcscpy(CmdLine, leargs.data());
             DeleteValueFromHKCU(L"SOFTWARE\\ME3Tweaks", L"LEAutobootArgs");
         }
@@ -197,4 +197,4 @@ public:
 
 // Global instance.
 
-static LEBinkProxy GLEBinkProxy;
+inline LEBinkProxy GLEBinkProxy;
