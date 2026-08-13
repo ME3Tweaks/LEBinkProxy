@@ -69,10 +69,15 @@ private:
             wcscpy(winTitle, LE2_WindowTitle);
             Game = LEGameVersion::LE2;
         }
-        // We don't use LMP here as ASIs are the same. We only use LMP for autoboot
         else if (exeName == wcsstr(exeName, LE3_ExecutableStem))
         {
             wcscpy(winTitle, LE3_WindowTitle);
+            Game = LEGameVersion::LE3;
+        }
+        // LMP uses LE3 Game for SPI, but it just has a different name for tooling.
+        else if (exeName == wcsstr(exeName, LMP_ExecutableStem))
+        {
+            wcscpy(winTitle, LE3_WindowTitle); // We must use this to hook the window
             Game = LEGameVersion::LE3;
         }
         else
@@ -182,7 +187,6 @@ public:
     void Initialize()
     {
         getUsedCommandLine_();
-
 
         GetModuleFileNameW(NULL, ExePath, MAX_PATH);
         stripExecutableName_(ExePath, ExeName);
