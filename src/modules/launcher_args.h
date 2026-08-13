@@ -584,6 +584,14 @@ public:
 		launchParams_.GameCmdLine = const_cast<wchar_t*>(this->cmdArgsBuffer_);
 		launchParams_.GameWorkDir = const_cast<wchar_t*>(gameToWorkingDir_(this->launchTarget_));
 
+		if (std::filesystem::exists(launchParams_.GameExePath) == false)
+		{
+			if (this->launchTarget_ != LEGameVersion::LMP)
+			{
+				GLogger.writeln(L"LauncherArgsModule.Activate: target game executable does not exist at path %s, aborting...", launchParams_.GameExePath);
+			}
+			return false;
+		}
 		// Allow debugging functionality.
 		this->overrideForDebug_();
 

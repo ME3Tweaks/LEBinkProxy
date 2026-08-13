@@ -1,6 +1,9 @@
 #pragma once
 
 #include <vector>
+#include <string>
+#include <algorithm>
+#include <wchar.h>
 #include <Windows.h>
 #include "../utils/io.h"
 #include "_base.h"
@@ -36,7 +39,7 @@ private:
     bool allSpiProcsLoaded_;
 
 public:
-    wchar_t* FileName;
+    std::wstring FileName;
     HINSTANCE LibInstance;
 
     AsiSpiSupportType SpiSupport;
@@ -52,7 +55,7 @@ public:
     int MinInterfaceVersion;
     bool IsAsyncAttachMode;
 
-    AsiPluginLoadInfo(wchar_t* fileName, HINSTANCE libInstance)
+    AsiPluginLoadInfo(const std::wstring& fileName, HINSTANCE libInstance)
         : FileName{ fileName }
         , LibInstance{ libInstance }
         , PluginName{ nullptr }
@@ -213,8 +216,7 @@ private:
 
     // Fields.
 
-    int fileCount_ = 0;
-    wchar_t fileNames_[MAX_PATH][MAX_FILES];
+    std::vector<std::wstring> fileNames_;
     wchar_t asiRoot_[512];
     AsiInfoList pluginLoadInfos_;
     DWORD lastErrorCode_ = 0;
@@ -269,7 +271,8 @@ private:
         {
             if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
             {
-                wcscpy(this->fileNames_[this->fileCount_++], fd.cFileName);
+                this->fileNames_.push_back(fd.cFileName);
+                GLogger.writeln(L"Found ASI: %s", fd.cFileName);
             }
         } while (::FindNextFile(findHandle, &fd));
         ::FindClose(findHandle);
@@ -277,7 +280,7 @@ private:
         return true;
     }
 
-    bool registerLoadInfo_(HINSTANCE dllModuleInstance, wchar_t* fileName)
+    bool registerLoadInfo_(HINSTANCE dllModuleInstance, const std::wstring& fileName)
     {
         AsiPluginLoadInfo loadInfo{ fileName, dllModuleInstance };
 
@@ -355,6 +358,12 @@ private:
         return false;
     }
 
+    // Comparison function for std::sort
+    // Returns true if s1 is lexicographically less than s2
+    bool compare_wstrings(const wchar_t* s1, const wchar_t* s2) {
+        return wcscmp(s1, s2) < 0;
+    }
+
 public:
     AsiLoaderModule()
         : IModule{ "AsiLoader" }
@@ -365,10 +374,8 @@ public:
 
     bool Activate() override
     {
-        for (int f = 0; f < MAX_FILES; f++)
-        {
-            memset(this->fileNames_[f], 0, MAX_PATH - 4);
-        }
+        this->fileNames_.clear();
+        this->fileNames_.reserve(MAX_FILES);
 
         // Build the root path for ASI plugins.
         if (!makeAsiRoot_())
@@ -390,14 +397,19 @@ public:
             return false;
         }
 
+        // Sort the fileNames_ vector alphabetically (case-insensitive)
+        std::sort(this->fileNames_.begin(), this->fileNames_.end(), [](const std::wstring& a, const std::wstring& b) {
+            return _wcsicmp(a.c_str(), b.c_str()) < 0;
+            });
+
         // For each found files, load the library and register SPI info.
         wchar_t fileNameBuffer[MAX_PATH];
         HINSTANCE lastModule = nullptr;
-        for (int f = 0; f < this->fileCount_; f++)
+        for (int f = 0; f < this->fileNames_.size(); f++)
         {
-            wsprintf(fileNameBuffer, L"ASI/%s", this->fileNames_[f]);
+            swprintf_s(fileNameBuffer, MAX_PATH, L"ASI/%s", this->fileNames_[f].c_str());
 
-            GLogger.writeln(L"AsiLoaderModule.Activate: loading %s...", this->fileNames_[f]);
+            GLogger.writeln(L"AsiLoaderModule.Activate: loading %s...", this->fileNames_[f].c_str());
 
             // Load the DLL file.
             // DllMain() code will be executed here, SPI will be executed later, from dllmain.cpp:OnAttach().
@@ -431,7 +443,7 @@ public:
         for (auto& loadInfo : this->pluginLoadInfos_)
         {
             GLogger.writeln(L"AsiLoaderModule.Deactivate:   - [%p] {%s} %s",
-                loadInfo.LibInstance, (loadInfo.SupportsSPI() ? L"SPI" : L"RAW"), loadInfo.FileName);
+                loadInfo.LibInstance, (loadInfo.SupportsSPI() ? L"SPI" : L"RAW"), loadInfo.FileName.c_str());
 
             if (loadInfo.SupportsSPI() && !loadInfo.OnDetach(GLEBinkProxy.SPI))
             {
@@ -454,10 +466,10 @@ public:
             {
                 if (!dispatchAttach_(interfacePtr, &loadInfo))
                 {
-                    GLogger.writeln(L"PreLoad: OnAttach dispatch returned an error [%s]", loadInfo.FileName);
+                    GLogger.writeln(L"PreLoad: OnAttach dispatch returned an error [%s]", loadInfo.FileName.c_str());
                     continue;
                 }
-                GLogger.writeln(L"PreLoad: OnAttach dispatch succeeded [%s] (mode = %d)", loadInfo.FileName, loadInfo.IsAsyncAttachMode);
+                GLogger.writeln(L"PreLoad: OnAttach dispatch succeeded [%s] (mode = %d)", loadInfo.FileName.c_str(), loadInfo.IsAsyncAttachMode);
             }
         }
 
@@ -477,10 +489,10 @@ public:
             {
                 if (!dispatchAttach_(interfacePtr, &loadInfo))
                 {
-                    GLogger.writeln(L"PostLoad: OnAttach dispatch returned an error [%s]", loadInfo.FileName);
+                    GLogger.writeln(L"PostLoad: OnAttach dispatch returned an error [%s]", loadInfo.FileName.c_str());
                     continue;
                 }
-                GLogger.writeln(L"PostLoad: OnAttach dispatch succeeded [%s] (mode = %d)", loadInfo.FileName, loadInfo.IsAsyncAttachMode);
+                GLogger.writeln(L"PostLoad: OnAttach dispatch succeeded [%s] (mode = %d)", loadInfo.FileName.c_str(), loadInfo.IsAsyncAttachMode);
             }
         }
 
