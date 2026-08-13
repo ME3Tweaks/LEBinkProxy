@@ -484,7 +484,7 @@ private:
 		case LEGameVersion::LE1: return L"../ME1/Binaries/Win64/MassEffect1.exe";
 		case LEGameVersion::LE2: return L"../ME2/Binaries/Win64/MassEffect2.exe";
 		case LEGameVersion::LE3: return L"../ME3/Binaries/Win64/MassEffect3.exe";
-		case LEGameVersion::LMP: return L"../LMP/Binaries/Win64/MassEffect3.exe";
+		case LEGameVersion::LMP: return L"../LMP/Binaries/Win64/MassEffectMultiplayer.exe";
 		default:
 			return nullptr;
 		}
