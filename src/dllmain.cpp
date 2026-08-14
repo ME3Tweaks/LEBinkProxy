@@ -247,16 +247,16 @@ bool SyncAttach()
 	// Post-drm mods are loaded in the switch below.
 	GLEBinkProxy.AsiLoader->PreLoad(GLEBinkProxy.SPI);
 
-	if (GLEBinkProxy.Game == LEGameVersion::LE1 
-	 || GLEBinkProxy.Game == LEGameVersion::LE2 
-	 || GLEBinkProxy.Game == LEGameVersion::LE3)
-	{
-		if (DRM::InstallDRMv4Hook(PostDRM_hook, reinterpret_cast<void**>(&PostDRM_hook_orig)))
-		{
-			return true;
-		}
-		//fallback to older method if the hook fails
-	}
+	//if (GLEBinkProxy.Game == LEGameVersion::LE1 
+	// || GLEBinkProxy.Game == LEGameVersion::LE2 
+	// || GLEBinkProxy.Game == LEGameVersion::LE3)
+	//{
+	//	if (DRM::InstallDRMv4Hook(PostDRM_hook, reinterpret_cast<void**>(&PostDRM_hook_orig)))
+	//	{
+	//		return true;
+	//	}
+	//	//fallback to older method if the hook fails
+	//}
 
 	CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)AsyncAttach, nullptr, 0, nullptr);
 
