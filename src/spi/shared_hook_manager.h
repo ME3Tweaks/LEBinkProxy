@@ -64,9 +64,16 @@ namespace SPI
         {
             SHOOKMNGR_LOCK(installMtx_);
 
-            if (!IsInitialized() || !IsOK(mhLastStatus_))
+            // NOTE: only gate on IsInitialized() here - mhLastStatus_ reflects the
+            // result of the PREVIOUS Install()/Uninstall() call, not this one. Gating
+            // on it too meant a single failed hook (e.g. MH_ERROR_UNSUPPORTED_FUNCTION
+            // for a target whose relocated prologue doesn't fit in the trampoline
+            // slot) permanently "poisoned" the shared manager for the rest of the
+            // process: every subsequent Install() call, for any hook from any plugin,
+            // would bail out here immediately without MinHook even being invoked.
+            if (!IsInitialized())
             {
-                GLogger.writeln(L"SharedHookMngr.Install: was not initialized or was in bad status");
+                GLogger.writeln(L"SharedHookMngr.Install: was not initialized");
                 return false;
             }
 
@@ -108,9 +115,10 @@ namespace SPI
         {
             SHOOKMNGR_LOCK(uninstallMtx_);
 
-            if (!IsInitialized() || !IsOK(mhLastStatus_))
+            // See the matching comment in Install() - don't gate on mhLastStatus_ here.
+            if (!IsInitialized())
             {
-                GLogger.writeln(L"SharedHookMngr.Uninstall: was not initialized or was in bad status");
+                GLogger.writeln(L"SharedHookMngr.Uninstall: was not initialized");
                 return false;
             }
 
