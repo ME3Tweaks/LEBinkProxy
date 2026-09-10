@@ -124,6 +124,37 @@ void SetWorkingDirectory() {
 	SetCurrentDirectoryW(exePath.parent_path().c_str());
 }
 
+// Licensee 205->206 (GMinPackageVersion)
+// Must be patched before the game reads it, which happens very early during game init.
+// This runs synchronously in DllMain's DLL_PROCESS_ATTACH, which fires while the game exe
+// is being loaded (imports are resolved before the exe's own entry point runs), so it beats
+// any hook- or thread-based patch that has to wait for game code to start executing first.
+#define LMP_LICENSEE_VERSION_RVA 0x1755c1c
+void PatchLicenseeVersionForLMP()
+{
+	if (GLEBinkProxy.ExeName != wcsstr(GLEBinkProxy.ExeName, LMP_ExecutableStem))
+	{
+		return;
+	}
+
+	auto* imageBase = reinterpret_cast<BYTE*>(GetModuleHandleW(nullptr));
+	auto* patchAddress = reinterpret_cast<int*>(imageBase + LMP_LICENSEE_VERSION_RVA);
+
+	DWORD oldProtect;
+	if (!VirtualProtect(patchAddress, sizeof(int), PAGE_READWRITE, &oldProtect))
+	{
+		GLogger.writeln(L"PatchLicenseeVersionForLMP: ERROR: VirtualProtect (RW) failed (code = %d).", GetLastError());
+		return;
+	}
+	*patchAddress = 206;
+	if (!VirtualProtect(patchAddress, sizeof(int), oldProtect, &oldProtect))
+	{
+		GLogger.writeln(L"PatchLicenseeVersionForLMP: WARNING: failed to restore original page protection (code = %d).", GetLastError());
+	}
+
+	GLogger.writeln(L"PatchLicenseeVersionForLMP: patched licensee version to LMP (206) at 0x%p.", patchAddress);
+}
+
 void __stdcall AsyncAttach()
 {
 	// Handle logic depending on the attached-to exe.
@@ -136,6 +167,11 @@ void __stdcall AsyncAttach()
 	{
 		// Keep trying to find a pattern we are *almost* guaranteed to have until we find it.
 		DRM::WaitForDRMv3();
+
+		// On DRM'd exes, the image is still encrypted until DRM unwraps it, so the early patch
+		// attempt in SyncAttach might fail as that area of memory is not yet decrypted. Re-check/patch here
+		// now that the image is guaranteed to be in its final decrypted state.
+		PatchLicenseeVersionForLMP();
 
 		// Unlock the console.
 		if (!GLEBinkProxy.ConsoleEnabler->Activate())
@@ -221,6 +257,9 @@ bool SyncAttach()
 
 	// Initialize global settings.
 	GLEBinkProxy.Initialize();
+
+	// Patch the licensee version to LMP as early as possible, before anything else runs.
+	PatchLicenseeVersionForLMP();
 
 	// Register modules (console enabler, launcher arg handler, asi loader).
 	GLEBinkProxy.AsiLoader = new AsiLoaderModule;
