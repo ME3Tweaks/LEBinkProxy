@@ -3,6 +3,8 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <mutex>
+#include <utility>
 #include <wchar.h>
 #include <Windows.h>
 #include "../utils/io.h"
@@ -16,18 +18,31 @@ typedef bool(* AsiSpiShouldSpawnThreadType)(void);
 typedef bool(* AsiOnAttachType)(ISharedProxyInterface* InterfacePtr);
 typedef bool(* AsiOnDetachType)(ISharedProxyInterface* InterfacePtr);
 
+struct AsiPluginLoadInfo;
 
 struct AsiAsyncDispatchInfo
 {
     ISharedProxyInterface* InterfacePtr;
     AsiOnAttachType FunctionPtr;
+    AsiPluginLoadInfo* LoadInfo;
+    std::mutex* CompletionMutex;
+    std::vector<AsiPluginLoadInfo*>* SuccessfulAttachments;
+    bool AttachSucceeded;
 };
-void __stdcall AsiAsyncDispatchThread(LPVOID lpParameter)
+DWORD WINAPI AsiAsyncDispatchThread(LPVOID lpParameter)
 {
     auto infoPtr = reinterpret_cast<AsiAsyncDispatchInfo*>(lpParameter);
-    infoPtr->FunctionPtr(infoPtr->InterfacePtr);
-
-    delete infoPtr;
+    infoPtr->AttachSucceeded = infoPtr->FunctionPtr(infoPtr->InterfacePtr);
+    if (infoPtr->AttachSucceeded)
+    {
+        // This is deliberately recorded by the worker at callback completion,
+        // not by the shutdown thread. The mutex makes the ledger safe while
+        // multiple async SPI callbacks finish concurrently, and the append
+        // order is their actual completion order.
+        std::lock_guard<std::mutex> lock{ *infoPtr->CompletionMutex };
+        infoPtr->SuccessfulAttachments->push_back(infoPtr->LoadInfo);
+    }
+    return 0;
 }
 
 
@@ -35,7 +50,9 @@ struct AsiPluginLoadInfo
 {
 private:
     bool shouldPreloadFetched_;
+    bool shouldPreloadResolved_;
     bool shouldSpawnThreadFetched_;
+    bool shouldSpawnThreadResolved_;
     bool allSpiProcsLoaded_;
 
 public:
@@ -54,6 +71,8 @@ public:
     int SupportedGamesBitset;
     int MinInterfaceVersion;
     bool IsAsyncAttachMode;
+    bool AttachDispatched;
+    bool AttachSucceeded;
 
     AsiPluginLoadInfo(const std::wstring& fileName, HINSTANCE libInstance)
         : FileName{ fileName }
@@ -64,13 +83,17 @@ public:
         , SupportedGamesBitset{ 0 }
         , MinInterfaceVersion { 0 }
         , IsAsyncAttachMode { false }
+        , AttachDispatched{ false }
+        , AttachSucceeded{ false }
         , SpiSupport{ nullptr }
         , DoPreload{ nullptr }
         , DoSpawnThread{ nullptr }
         , OnAttach{ nullptr }
         , OnDetach{ nullptr }
         , shouldPreloadFetched_{ false }
+        , shouldPreloadResolved_{ false }
         , shouldSpawnThreadFetched_{ false }
+        , shouldSpawnThreadResolved_{ false }
         , allSpiProcsLoaded_{ true }  // set to false on first error
     {
 
@@ -86,14 +109,13 @@ public:
             return false;
         }
 
-        static bool ranCall = false;
-        if (!ranCall && DoPreload)
+        if (!shouldPreloadResolved_ && DoPreload)
         {
             shouldPreloadFetched_ = DoPreload();
-            ranCall = true;
+            shouldPreloadResolved_ = true;
         }
 
-        if (!ranCall)
+        if (!shouldPreloadResolved_)
         {
             GLogger.writeln(L"ShouldPreload: fell through the call check, most likely DoPreload was NULL");
             return false;
@@ -108,20 +130,7 @@ public:
             return false;
         }
 
-        static bool ranCall = false;
-        if (!ranCall && DoPreload)
-        {
-            shouldPreloadFetched_ = DoPreload();
-            ranCall = true;
-        }
-
-        if (!ranCall)
-        {
-            GLogger.writeln(L"ShouldPostload: fell through the call check, most likely DoPreload was NULL");
-            return false;
-        }
-
-        return !shouldPreloadFetched_;
+        return !ShouldPreload();
     }
     [[nodiscard]] __forceinline bool ShouldSpawnThread()
     {
@@ -130,14 +139,13 @@ public:
             return false;
         }
 
-        static bool ranCall = false;
-        if (!ranCall && DoSpawnThread)
+        if (!shouldSpawnThreadResolved_ && DoSpawnThread)
         {
             shouldSpawnThreadFetched_ = DoSpawnThread();
-            ranCall = true;
+            shouldSpawnThreadResolved_ = true;
         }
 
-        if (!ranCall)
+        if (!shouldSpawnThreadResolved_)
         {
             GLogger.writeln(L"ShouldPostload: fell through the call check, most likely DoSpawnThread was NULL");
             return false;
@@ -177,7 +185,7 @@ public:
             GLogger.writeln(L"LoadConditionalProcs: failed to find SpiShouldPreload (last error = %d)", GetLastError());
         }
 
-        DoSpawnThread = (AsiSpiShouldPreloadType)GetProcAddress(LibInstance, "SpiShouldSpawnThread");
+        DoSpawnThread = (AsiSpiShouldSpawnThreadType)GetProcAddress(LibInstance, "SpiShouldSpawnThread");
         if (DoSpawnThread == NULL)
         {
             allSpiProcsLoaded_ = false;
@@ -219,9 +227,13 @@ private:
     std::vector<std::wstring> fileNames_;
     wchar_t asiRoot_[512];
     AsiInfoList pluginLoadInfos_;
+    std::vector<std::pair<HANDLE, AsiAsyncDispatchInfo*>> asyncAttachThreads_;
+    std::vector<AsiPluginLoadInfo*> successfulAttachments_;
+    std::mutex completionMutex_;
     DWORD lastErrorCode_ = 0;
 	bool activatedPreloads_ = false;
 	bool activatedPostloads_ = false;
+	bool deactivated_ = false;
 
     // Methods.
 
@@ -339,23 +351,76 @@ private:
 
         loadInfo->IsAsyncAttachMode = loadInfo->ShouldSpawnThread();
         GLogger.writeln(L"dispatchAttach_: got IsAsyncAttachMode (= %d)", loadInfo->IsAsyncAttachMode);
+        loadInfo->AttachDispatched = true;
 
         if (!loadInfo->IsAsyncAttachMode)  // seq
         {
-            return loadInfo->OnAttach(interfacePtr);
+            loadInfo->AttachSucceeded = loadInfo->OnAttach(interfacePtr);
+            if (loadInfo->AttachSucceeded)
+            {
+                std::lock_guard<std::mutex> lock{ completionMutex_ };
+                successfulAttachments_.push_back(loadInfo);
+            }
+            return loadInfo->AttachSucceeded;
         }
         else if (loadInfo->IsAsyncAttachMode)  // async
         {
-            auto dispatchInfo = new AsiAsyncDispatchInfo{ interfacePtr, loadInfo->OnAttach };  // deleted inside the dispatch
-            if (NULL == CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(AsiAsyncDispatchThread), dispatchInfo, 0, nullptr))
+            auto dispatchInfo = new AsiAsyncDispatchInfo{
+                interfacePtr,
+                loadInfo->OnAttach,
+                loadInfo,
+                &completionMutex_,
+                &successfulAttachments_,
+                false
+            };
+            HANDLE const threadHandle = CreateThread(nullptr, 0,
+                AsiAsyncDispatchThread, dispatchInfo, 0, nullptr);
+            if (threadHandle == NULL)
             {
                 GLogger.writeln(L"dispatchAttach_: ERROR: CreateThread failed, error code = %d", GetLastError());
+                delete dispatchInfo;
+                loadInfo->AttachDispatched = false;
                 return false;
             }
-            return true;  // OnAttach return value is discarded in async mode!
+            try
+            {
+                asyncAttachThreads_.emplace_back(threadHandle, dispatchInfo);
+            }
+            catch (...)
+            {
+                // The worker owns no independent lifetime. If retaining its
+                // handle fails, join it immediately before releasing its
+                // dispatch record so the callback cannot access freed state.
+                GLogger.writeln(L"dispatchAttach_: ERROR: failed to retain async worker handle.");
+                WaitForSingleObject(threadHandle, INFINITE);
+                CloseHandle(threadHandle);
+                delete dispatchInfo;
+                loadInfo->AttachDispatched = false;
+                return false;
+            }
+            return true;
         }
         
         return false;
+    }
+
+    void waitForAsyncAttaches_()
+    {
+        // Called by Deactivate from the explicit shutdown route, after the
+        // post-DRM manager has been joined and immediately before reverse
+        // detach. PostLoad intentionally never calls this helper.
+        for (auto const& [threadHandle, dispatchInfo] : asyncAttachThreads_)
+        {
+            DWORD const waitResult = WaitForSingleObject(threadHandle, INFINITE);
+            if (waitResult != WAIT_OBJECT_0)
+            {
+                GLogger.writeln(L"AsiLoaderModule: ERROR: waiting for async worker failed (code = %d).", GetLastError());
+            }
+            dispatchInfo->LoadInfo->AttachSucceeded = dispatchInfo->AttachSucceeded;
+            CloseHandle(threadHandle);
+            delete dispatchInfo;
+        }
+        asyncAttachThreads_.clear();
     }
 
     // Comparison function for std::sort
@@ -376,6 +441,8 @@ public:
     {
         this->fileNames_.clear();
         this->fileNames_.reserve(MAX_FILES);
+        this->asyncAttachThreads_.reserve(MAX_FILES);
+        this->successfulAttachments_.reserve(MAX_FILES);
 
         // Build the root path for ASI plugins.
         if (!makeAsiRoot_())
@@ -438,10 +505,18 @@ public:
     }
     void Deactivate() override
     {
-        // maybe force-unload the ASIs?
-        GLogger.writeln(L"AsiLoaderModule.Deactivate: all pluginLoadInfos_:");
-        for (auto& loadInfo : this->pluginLoadInfos_)
+        if (deactivated_)
+            return;
+
+        waitForAsyncAttaches_();
+
+        // Detach only ASIs whose attach callback actually returned success. The
+        // ledger reflects the real preload/postload completion order rather than
+        // the registration order of the DLL directory.
+        GLogger.writeln(L"AsiLoaderModule.Deactivate: %zu successful attachment(s):", successfulAttachments_.size());
+        for (auto Iter = successfulAttachments_.rbegin(); Iter != successfulAttachments_.rend(); ++Iter)
         {
+            auto& loadInfo = **Iter;
             GLogger.writeln(L"AsiLoaderModule.Deactivate:   - [%p] {%s} %s",
                 loadInfo.LibInstance, (loadInfo.SupportsSPI() ? L"SPI" : L"RAW"), loadInfo.FileName.c_str());
 
@@ -450,6 +525,9 @@ public:
                 GLogger.writeln(L"AsiLoaderModule.Deactivate:   ERROR: detach reported a failure, continuing...");
             }
         }
+
+        successfulAttachments_.clear();
+        deactivated_ = true;
     }
 
     bool PreLoad(ISharedProxyInterface* interfacePtr)
@@ -483,6 +561,7 @@ public:
             return true;
         }
         activatedPostloads_ = true;
+
         for (auto& loadInfo : pluginLoadInfos_)
         {
             if (loadInfo.ShouldPostload())

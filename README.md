@@ -25,6 +25,28 @@ Should this proxy not work, make sure you are using the latest version and then 
 
 In the original Mass Effect trilogy, certain mods required a DLL bypass to work. This led many developers to distribute a Bink proxy with their mods. Even after almost the entire scene moved to use [ME3Tweaks Mod Manager](https://github.com/ME3Tweaks/ME3TweaksModManager) (M3), which has a built-in Bink proxy installer, some developers continue(d) to ship their own DLLs, which resulted in many different versions of the tool being spread all over the Internet.
 
+### SPI v4 console broker
+
+SPI v4 exposes a process-wide console broker for ASIs. A v4 consumer acquires a
+lease, opens its own `CONOUT$` handle, and releases only that lease during
+shutdown. The proxy owns the sticky console for the lifetime of the process and
+does not call `FreeConsole` when an individual ASI detaches. SPI v3 consumers
+remain loadable for compatibility, but legacy non-broker ASIs can still call
+`FreeConsole` or otherwise manipulate the process console and disrupt brokered
+output.
+
+The proxy's explicit shutdown entry point is `LEBinkProxyShutdown`. Hosts that
+support unloading the proxy should call it before `FreeLibrary`; process
+termination uses the loader-safe fast path.
+
+The proxy leaves `DllMain` without performing ASI loading or SPI callbacks. A
+readiness event completes after the background bootstrap has initialized
+`GLEBinkProxy`, created SPI, and dispatched preload callbacks. Code that needs
+those proxy services can call the optional `LEBinkProxyEnsureReady` export; the
+Bink exports remain the original linker forwarders so no guessed Bink ABI or
+call-order dependency is introduced. Post-load async SPI callbacks remain
+non-blocking and are joined only by the explicit shutdown path.
+
 ## Screenshot (LE1)
 
 ![Example of the proxy at work](https://i.imgur.com/MRgzZzg.png)

@@ -70,6 +70,9 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
     </Link>
+    <PostBuildEvent>
+      <Command>copy /Y "$(TargetPath)" "S:\SteamLibrary\steamapps\common\Mass Effect Legendary Edition\Game\ME3\Binaries\Win64\bink2w64.dll"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -121,6 +124,7 @@
     <ClInclude Include="src\spi\shallow_implementation.h" />
     <ClInclude Include="src\spi\shared_hook_manager.h" />
     <ClInclude Include="src\utils\classutils.h" />
+    <ClInclude Include="src\utils\console_broker.h" />
     <ClInclude Include="src\utils\event.h" />
     <ClInclude Include="src\utils\hook.h" />
     <ClInclude Include="src\utils\io.h" />

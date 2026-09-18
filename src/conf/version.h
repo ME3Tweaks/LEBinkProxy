@@ -1,6 +1,8 @@
 #pragma once
 
-#define LEBINKPROXY_VERSION  L"2.0.0.14"
+#include "../spi/interface.h"
+
+#define LEBINKPROXY_VERSION  L"2.0.0.15"
 #define LEBINKPROXY_BUILDTM  __DATE__ " " __TIME__
 
 #ifdef ASI_DEBUG
@@ -9,4 +11,4 @@
 #define LEBINKPROXY_BUILDMD  L"RELEASE"
 #endif
 
-#define ASI_SPI_VERSION 3
+#define ASI_SPI_VERSION SPI_VERSION_LATEST

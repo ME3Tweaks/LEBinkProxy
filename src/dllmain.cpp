@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <filesystem>
 #include <Dbghelp.h>
+#include <atomic>
 
 #include <cwchar>
 
@@ -20,6 +21,46 @@
 
 
 PVOID GhVEH = NULL;
+inline HANDLE GProxyBootstrapThread = nullptr;
+inline HANDLE GProxyAsyncAttachThread = nullptr;
+inline HANDLE GProxyReadyEvent = nullptr;
+inline DWORD GProxyBootstrapThreadId = 0;
+inline DWORD GProxyAsyncAttachThreadId = 0;
+inline std::atomic_bool GProxyDetachStarted{ false };
+inline std::atomic_bool GProxyInitializationSucceeded{ false };
+inline std::atomic_bool GProxyOutputReady{ false };
+inline std::atomic<DWORD> GProxyBootstrapWorkerId{ 0 };
+
+void SignalProxyReady(bool succeeded) noexcept
+{
+	GProxyInitializationSucceeded.store(succeeded, std::memory_order_release);
+	if (GProxyReadyEvent != nullptr)
+		SetEvent(GProxyReadyEvent);
+}
+
+bool WaitForProxyReady()
+{
+	// An ASI loaded by the bootstrap thread can call this readiness export while
+	// the bootstrap is still constructing the proxy. Waiting on our own event
+	// would deadlock, so report only the already-published success state instead
+	// of claiming readiness before preload dispatch has completed.
+	if (GetCurrentThreadId() == GProxyBootstrapWorkerId.load(std::memory_order_acquire))
+		return GProxyInitializationSucceeded.load(std::memory_order_acquire);
+
+	HANDLE const readyEvent = GProxyReadyEvent;
+	if (readyEvent == nullptr)
+		return false;
+
+	if (WaitForSingleObject(readyEvent, INFINITE) != WAIT_OBJECT_0)
+		return false;
+
+	return GProxyInitializationSucceeded.load(std::memory_order_acquire);
+}
+
+extern "C" __declspec(dllexport) bool LEBinkProxyEnsureReady()
+{
+	return WaitForProxyReady();
+}
 
 LONG LEBinkProxyVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionPtrs)
 {
@@ -126,33 +167,46 @@ void SetWorkingDirectory() {
 
 // Licensee 205->206 (GMinPackageVersion)
 // Must be patched before the game reads it, which happens very early during game init.
-// This runs synchronously in DllMain's DLL_PROCESS_ATTACH, which fires while the game exe
-// is being loaded (imports are resolved before the exe's own entry point runs), so it beats
-// any hook- or thread-based patch that has to wait for game code to start executing first.
+// The first call is made directly from DllMain before the bootstrap worker is
+// created. The function therefore cannot rely on GLEBinkProxy or the logger,
+// both of which are initialized by the worker.
 #define LMP_LICENSEE_VERSION_RVA 0x1755c1c
-void PatchLicenseeVersionForLMP()
+bool PatchLicenseeVersionForLMP()
 {
-	if (GLEBinkProxy.ExeName != wcsstr(GLEBinkProxy.ExeName, LMP_ExecutableStem))
+	wchar_t executablePath[MAX_PATH]{};
+	if (GetModuleFileNameW(nullptr, executablePath, _countof(executablePath)) == 0 ||
+		wcsstr(executablePath, LMP_ExecutableStem) == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	auto* imageBase = reinterpret_cast<BYTE*>(GetModuleHandleW(nullptr));
+	if (imageBase == nullptr)
+		return false;
+
 	auto* patchAddress = reinterpret_cast<int*>(imageBase + LMP_LICENSEE_VERSION_RVA);
 
 	DWORD oldProtect;
 	if (!VirtualProtect(patchAddress, sizeof(int), PAGE_READWRITE, &oldProtect))
 	{
-		GLogger.writeln(L"PatchLicenseeVersionForLMP: ERROR: VirtualProtect (RW) failed (code = %d).", GetLastError());
-		return;
+		if (GProxyOutputReady.load(std::memory_order_acquire))
+			GLogger.writeln(L"PatchLicenseeVersionForLMP: ERROR: VirtualProtect (RW) failed (code = %d).", GetLastError());
+		else
+			OutputDebugStringW(L"LEBinkProxy: early LMP licensee patch VirtualProtect failed.\n");
+		return false;
 	}
 	*patchAddress = 206;
 	if (!VirtualProtect(patchAddress, sizeof(int), oldProtect, &oldProtect))
 	{
-		GLogger.writeln(L"PatchLicenseeVersionForLMP: WARNING: failed to restore original page protection (code = %d).", GetLastError());
+		if (GProxyOutputReady.load(std::memory_order_acquire))
+			GLogger.writeln(L"PatchLicenseeVersionForLMP: WARNING: failed to restore original page protection (code = %d).", GetLastError());
+		else
+			OutputDebugStringW(L"LEBinkProxy: early LMP licensee patch could not restore page protection.\n");
 	}
 
-	GLogger.writeln(L"PatchLicenseeVersionForLMP: patched licensee version to LMP (206) at 0x%p.", patchAddress);
+	if (GProxyOutputReady.load(std::memory_order_acquire))
+		GLogger.writeln(L"PatchLicenseeVersionForLMP: patched licensee version to LMP (206) at 0x%p.", patchAddress);
+	return true;
 }
 
 void __stdcall AsyncAttach()
@@ -216,6 +270,12 @@ void __stdcall AsyncAttach()
 	return;
 }
 
+DWORD WINAPI AsyncAttachThreadProc(LPVOID)
+{
+	AsyncAttach();
+	return 0;
+}
+
 using t_PostDRM_hook = void*(void*, char, size_t, void*);
 t_PostDRM_hook* PostDRM_hook_orig = nullptr;
 void* PostDRM_hook(void* param_1, char param_2, size_t param_3, void* param_4) 
@@ -234,6 +294,13 @@ bool SyncAttach()
 {
 	// Open console or log.
 	Utils::SetupOutput();
+	GProxyOutputReady.store(true, std::memory_order_release);
+
+	struct ReadySignal final
+	{
+		bool succeeded = false;
+		~ReadySignal() { SignalProxyReady(succeeded); }
+	} readySignal;
 
 	GLogger.writeln(L"Attached...\n"
 		L"LEBinkProxy by d00telemental/ME3Tweaks\n"
@@ -258,7 +325,9 @@ bool SyncAttach()
 	// Initialize global settings.
 	GLEBinkProxy.Initialize();
 
-	// Patch the licensee version to LMP as early as possible, before anything else runs.
+	// Reapply the LMP patch after proxy identity initialization. DllMain already
+	// attempted the earliest patch; this second call is also useful after DRM
+	// has replaced encrypted image pages.
 	PatchLicenseeVersionForLMP();
 
 	// Register modules (console enabler, launcher arg handler, asi loader).
@@ -273,6 +342,7 @@ bool SyncAttach()
 	// Spawn the SPI implementation.
 	GLEBinkProxy.SPI = new SPI::SharedProxyInterface();
 	GLogger.writeln(L"OnAttach: instanced the SPI! (ver = %d)", ASI_SPI_VERSION);
+	GLogger.writeln(L"OnAttach: SPI v4 console broker is sticky until process termination; legacy ASIs that call FreeConsole can still disrupt output.");
 
 	// Find all native mods and iteratively call LoadLibrary().
 	if (!GLEBinkProxy.AsiLoader->Activate())
@@ -297,13 +367,59 @@ bool SyncAttach()
 	//	//fallback to older method if the hook fails
 	//}
 
-	CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)AsyncAttach, nullptr, 0, nullptr);
+	GProxyAsyncAttachThread = CreateThread(nullptr, 0, AsyncAttachThreadProc, nullptr, 0, &GProxyAsyncAttachThreadId);
+	if (GProxyAsyncAttachThread == nullptr)
+	{
+		GLogger.writeln(L"OnAttach: ERROR: failed to create the tracked post-DRM worker (code = %d).", GetLastError());
+	}
 
+	readySignal.succeeded = true;
 	return true;
+}
+
+DWORD WINAPI ProxyBootstrapThreadProc(LPVOID)
+{
+	GProxyBootstrapWorkerId.store(GetCurrentThreadId(), std::memory_order_release);
+	SyncAttach();
+	GProxyBootstrapWorkerId.store(0, std::memory_order_release);
+	return 0;
 }
 
 void __stdcall OnDetach()
 {
+	if (GProxyDetachStarted.exchange(true))
+		return;
+
+	// This function is called only from the explicit exported shutdown entry
+	// point. Waiting here is safe because it is outside loader lock; the
+	// DLL_PROCESS_DETACH path below intentionally does not call it.
+	if (GProxyBootstrapThread != nullptr && GetCurrentThreadId() != GProxyBootstrapThreadId)
+	{
+		WaitForSingleObject(GProxyBootstrapThread, INFINITE);
+		CloseHandle(GProxyBootstrapThread);
+		GProxyBootstrapThread = nullptr;
+		GProxyBootstrapThreadId = 0;
+	}
+	if (GProxyAsyncAttachThread != nullptr && GetCurrentThreadId() != GProxyAsyncAttachThreadId)
+	{
+		WaitForSingleObject(GProxyAsyncAttachThread, INFINITE);
+		CloseHandle(GProxyAsyncAttachThread);
+		GProxyAsyncAttachThread = nullptr;
+		GProxyAsyncAttachThreadId = 0;
+	}
+
+	// A bootstrap thread creation failure occurs before SetupOutput, so there
+	// is no logger or module state to tear down on this path.
+	if (!GProxyOutputReady.load(std::memory_order_acquire))
+	{
+		if (GProxyReadyEvent != nullptr)
+		{
+			CloseHandle(GProxyReadyEvent);
+			GProxyReadyEvent = nullptr;
+		}
+		return;
+	}
+
 	GLogger.writeln(L"OnDetach: entered...");
 
 	// Unload the DLLs.
@@ -318,16 +434,56 @@ void __stdcall OnDetach()
 
 	// Remove the VEH handler we set in OnAttach.
 	UnsetVectoredExceptionHandler();
+
+	if (GProxyReadyEvent != nullptr)
+	{
+		CloseHandle(GProxyReadyEvent);
+		GProxyReadyEvent = nullptr;
+	}
+
+}
+
+// Call this before FreeLibrary when an embedding host explicitly unloads the
+// proxy. DLL_PROCESS_DETACH cannot perform this work because the loader lock is
+// held and ASI callbacks may wait on arbitrary process state.
+extern "C" __declspec(dllexport) bool LEBinkProxyShutdown()
+{
+	OnDetach();
+	return true;
 }
 
 BOOL WINAPI DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved) {
 	switch (dwReason) {
 	case DLL_PROCESS_ATTACH:
-		SyncAttach();
+		DisableThreadLibraryCalls(hModule);
+		// DllMain must not load ASIs, acquire broker locks, or call ASI code.
+		// The event gives explicit consumers a readiness contract without forcing
+		// DllMain to wait under loader lock.
+		// This patch is intentionally independent of GLEBinkProxy and logging:
+		// DRM's LMP value must be changed before the game reaches its entry point.
+		PatchLicenseeVersionForLMP();
+		GProxyReadyEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+		if (GProxyReadyEvent == nullptr)
+		{
+			OutputDebugStringW(L"LEBinkProxy: failed to create the initialization-ready event.\n");
+			return TRUE;
+		}
+		GProxyBootstrapThread = CreateThread(nullptr, 0,
+			ProxyBootstrapThreadProc, nullptr, 0, &GProxyBootstrapThreadId);
+		if (GProxyBootstrapThread == nullptr)
+		{
+			SignalProxyReady(false);
+			OutputDebugStringW(L"LEBinkProxy: failed to create the bootstrap worker.\n");
+		}
 		return TRUE;
 
 	case DLL_PROCESS_DETACH:
-		OnDetach();
+		// DLL_PROCESS_DETACH with a non-null lpReserved is process termination.
+		// The loader lock is held here, so ASI callbacks, waits, joins, and hook
+		// teardown are unsafe and can keep the game alive indefinitely. The OS
+		// will reclaim the proxy and injected-module state as the process exits.
+		if (lpReserved == nullptr)
+			OutputDebugStringW(L"LEBinkProxy: explicit unload requires LEBinkProxyShutdown before FreeLibrary.\n");
 		return TRUE;
 
 	default:

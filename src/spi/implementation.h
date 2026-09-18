@@ -10,6 +10,7 @@
 #include "../utils/hook.h"
 #include "../utils/classutils.h"
 #include "../utils/memory.h"
+#include "../utils/console_broker.h"
 #include "../dllstruct.h"
 #include "../spi/shared_hook_manager.h"
 #include "../spi/interface.h"
@@ -33,13 +34,13 @@ namespace SPI
         BOOL isRelease_;
 
         SharedHookManager hookMngr_;
+        ConsoleBroker consoleBroker_;
 
         std::mutex mtxGetVersion_;
         std::mutex mtxGetBuildMode_;
         std::mutex mtxGetHostGame_;
         std::mutex mtxFindPattern_;
         std::mutex mtxInstallHook_;
-        std::mutex mtxUninstallHook_;
 
         // Implementation methods.
 
@@ -218,6 +219,11 @@ namespace SPI
         {
             SPI_IMPL_INSTANCE_LOCK(mtxInstallHook_);
 
+            if (!name || !target || !detour || !original)
+            {
+                return SPIReturn::FailureInvalidParam;
+            }
+
             if (hookMngr_.HookExists(const_cast<char*>(name)))
             {
                 GLogger.writeln(L"Failed to install the hook [%S] because it already exists", name);
@@ -233,9 +239,56 @@ namespace SPI
             return SPIReturn::Success;
         }
 
+        SPIDEFN InstallHookDeferred(const char* name, void* target, void* detour, void** original)
+        {
+            SPI_IMPL_INSTANCE_LOCK(mtxInstallHook_);
+
+            if (!name || !target || !detour || !original)
+            {
+                return SPIReturn::FailureInvalidParam;
+            }
+
+            if (hookMngr_.HookExists(const_cast<char*>(name)))
+            {
+                GLogger.writeln(L"Failed to install deferred hook [%S] because it already exists", name);
+                return SPIReturn::FailureDuplicacy;
+            }
+
+            if (!hookMngr_.InstallDeferred(target, detour, original, const_cast<char*>(name)))
+            {
+                GLogger.writeln(L"Failed to install deferred hook [%S]", name);
+                return SPIReturn::FailureHooking;
+            }
+
+            return SPIReturn::Success;
+        }
+
+        SPIDEFN EnableHook(const char* name)
+        {
+            SPI_IMPL_INSTANCE_LOCK(mtxInstallHook_);
+
+            if (!name)
+            {
+                return SPIReturn::FailureInvalidParam;
+            }
+
+            if (!hookMngr_.Enable(const_cast<char*>(name)))
+            {
+                GLogger.writeln(L"Failed to enable hook [%S]", name);
+                return SPIReturn::FailureHooking;
+            }
+
+            return SPIReturn::Success;
+        }
+
         SPIDEFN UninstallHook(const char* name)
         {
-            SPI_IMPL_INSTANCE_LOCK(mtxUninstallHook_);
+            SPI_IMPL_INSTANCE_LOCK(mtxInstallHook_);
+
+            if (!name)
+            {
+                return SPIReturn::FailureInvalidParam;
+            }
 
             if (!hookMngr_.HookExists(const_cast<char*>(name)))
             {
@@ -250,6 +303,44 @@ namespace SPI
             }
 
             return SPIReturn::Success;
+        }
+
+        bool AcquireConsoleLease(wchar_t const* ownerName, SPIConsoleLease* outLease) override
+        {
+            bool const acquired = consoleBroker_.AcquireConsoleLease(ownerName, outLease);
+            wchar_t const* const owner = ownerName != nullptr ? ownerName : L"<unnamed>";
+            if (acquired)
+            {
+                GLogger.writeln(L"SPI ConsoleBroker: acquired lease %llu for %s.",
+                    static_cast<unsigned long long>(*outLease), owner);
+            }
+            else
+            {
+                GLogger.writeln(L"SPI ConsoleBroker: failed to acquire a lease for %s (error = %lu).",
+                    owner, GetLastError());
+            }
+            return acquired;
+        }
+
+        bool OpenConsoleOutput(SPIConsoleLease const lease, HANDLE* outOutputHandle) override
+        {
+            bool const opened = consoleBroker_.OpenConsoleOutput(lease, outOutputHandle);
+            if (opened)
+            {
+                GLogger.writeln(L"SPI ConsoleBroker: opened console output for lease %llu.",
+                    static_cast<unsigned long long>(lease));
+            }
+            else
+            {
+                GLogger.writeln(L"SPI ConsoleBroker: failed to open console output for lease %llu (error = %lu).",
+                    static_cast<unsigned long long>(lease), GetLastError());
+            }
+            return opened;
+        }
+
+        void ReleaseConsoleLease(SPIConsoleLease const lease) override
+        {
+            consoleBroker_.ReleaseConsoleLease(lease);
         }
 
         // End of ISharedProxyInterface implementation.

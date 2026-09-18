@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+#include <Windows.h>
 
 #pragma region Plugin-side utilities
 
@@ -15,8 +17,12 @@
 /// SPI version macros.
 /// Duplicate the stuff in version.h!!!
 
-#define SPI_VERSION_ANY     3
-#define SPI_VERSION_LATEST  3
+#define SPI_VERSION_V3      3
+#define SPI_VERSION_V4      4
+#define SPI_VERSION_ANY     SPI_VERSION_V3
+#define SPI_VERSION_LATEST  SPI_VERSION_V4
+
+using SPIConsoleLease = std::uint64_t;
 
 /// Plugin-side definition which marks the dll as supporting SPI.
 #define SPI_PLUGINSIDE_SUPPORT(NAME,AUTHOR,VERSION,GAME_FLAGS,SPIMINVER) \
@@ -164,6 +170,23 @@ public:
     /// <param name="name">Name of the hook to remove.</param>
     /// <returns>An appropriate <see cref="SPIReturn"/> code.</returns>
     SPIDECL UninstallHook(const char* name) = 0;
+
+    /// Acquire a named, opaque lease for the process console.
+    /// The proxy copies ownerName for diagnostics and does not retain the caller's pointer.
+    virtual bool AcquireConsoleLease(wchar_t const* ownerName, SPIConsoleLease* outLease) = 0;
+
+    /// Open a fresh caller-owned handle to CONOUT$ for a valid lease.
+    virtual bool OpenConsoleOutput(SPIConsoleLease lease, HANDLE* outOutputHandle) = 0;
+
+    /// Release a lease. This is idempotent and never detaches the process console.
+    virtual void ReleaseConsoleLease(SPIConsoleLease lease) = 0;
+
+    /// Create a hook and its trampoline without enabling it. The caller must
+    /// subsequently call EnableHook after publishing the returned original.
+    SPIDECL InstallHookDeferred(const char* name, void* target, void* detour, void** original) = 0;
+
+    /// Enable a hook previously created by InstallHookDeferred.
+    SPIDECL EnableHook(const char* name) = 0;
 };
 
 #pragma endregion
