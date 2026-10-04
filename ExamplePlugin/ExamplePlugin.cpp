@@ -1,3 +1,4 @@
+#include <atomic>
 #include "../src/spi/interface.h"
 #include "Common.h"
 
@@ -32,12 +33,35 @@ struct FString
 // Prototype, pointer to store the original function, and the hook.
 typedef FString* (*StringByRefT)(void* something, FString* outString, DWORD strRef, DWORD bParse);
 StringByRefT StringByRef_orig = nullptr;
+std::atomic<std::uint32_t> StringByRefCount{ 0 };
 void* StringByRef_hook(void* something, FString* outString, DWORD strRef, DWORD bParse)
 {
     auto result = StringByRef_orig(something, outString, strRef, bParse);
+    ++StringByRefCount;
     writeln(L"StringByRef - %d => %s", strRef, result->Data);
     return result;
 }
+
+#pragma endregion
+
+
+// Service published for other plugins through the SPI v4 registry.
+#pragma region Example service.
+
+// Other plugins include this declaration to use the service. Only ever append to the table,
+// bumping EXAMPLE_SERVICE_VERSION each time, so older consumers keep working.
+#define EXAMPLE_SERVICE_NAME    "ExamplePlugin.Strings"
+#define EXAMPLE_SERVICE_VERSION 1
+
+struct ExampleServiceTable
+{
+    std::uint32_t (*GetStringByRefCount)();
+};
+
+std::uint32_t GetStringByRefCount() { return StringByRefCount.load(); }
+
+// Must outlive the plugin's attach: the proxy keeps only this pointer.
+const ExampleServiceTable ExampleService{ &GetStringByRefCount };
 
 #pragma endregion
 
@@ -73,8 +97,37 @@ SPI_IMPLEMENT_ATTACH
         return false;
     }
 
+    // The service registry needs SPI v4, but this plugin also loads on v3, so check before using it.
+    unsigned long spiVersion = 0;
+    bool const hasRegistry = InterfacePtr->GetVersion(&spiVersion) == SPIReturn::Success && spiVersion >= SPI_VERSION_V4;
+
+    // Provider side: publish the table once the plugin is ready to serve it.
+    if (hasRegistry)
+    {
+        rc = InterfacePtr->RegisterService(EXAMPLE_SERVICE_NAME, EXAMPLE_SERVICE_VERSION, &ExampleService);
+        writeln(L"OnAttach - RegisterService returned %d / %s", rc, SPIReturnToString(rc));
+    }
+
     writeln(L"OnAttach - now I will wait for 15 seconds before uninstalling the hook!");
     Sleep(15 * 1000);
+
+    // Consumer side, normally in another plugin. Attach order is not guaranteed, so real
+    // consumers query lazily (e.g. once per tick) until FailureNotFound turns into Success.
+    if (hasRegistry)
+    {
+        const void* table = nullptr;
+        std::uint32_t version = 0;
+        rc = InterfacePtr->QueryService(EXAMPLE_SERVICE_NAME, 1, &table, &version);
+        if (rc == SPIReturn::Success)
+        {
+            auto const service = static_cast<const ExampleServiceTable*>(table);
+            writeln(L"OnAttach - found %S v%u, StringByRef ran %u times", EXAMPLE_SERVICE_NAME, version, service->GetStringByRefCount());
+        }
+        else
+        {
+            writeln(L"OnAttach - QueryService returned %d / %s", rc, SPIReturnToString(rc));
+        }
+    }
 
     rc = InterfacePtr->UninstallHook(MY_HOOK("StringByRef"));
     writeln(L"OnDetach - UninstallHook returned %d / %s", rc, SPIReturnToString(rc));

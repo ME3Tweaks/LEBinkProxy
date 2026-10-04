@@ -35,6 +35,26 @@ remain loadable for compatibility, but legacy non-broker ASIs can still call
 `FreeConsole` or otherwise manipulate the process console and disrupt brokered
 output.
 
+### SPI v4 service registry
+
+ASIs can publish a table of functions for other ASIs with `RegisterService` and
+look one up with `QueryService`. Services are identified by name (by convention
+`Owner.Feature`, such as `LMP.Lobby`) and an integer version, so a consumer does
+not need to know which ASI file provides a service, and another ASI can provide
+the same service instead.
+
+- A provider registers at the end of its attach, once the table is usable. The
+  table must stay valid until process exit; there is no unregistration. Its
+  functions should fail gracefully once the provider has detached.
+- New functions are only ever appended to a table, with a version bump.
+  Changing an existing function requires a new service name.
+- Attach order between ASIs is not guaranteed, so a consumer queries lazily and
+  treats `FailureNotFound` as "not yet". `FailureVersionTooOld` still reports
+  the registered version, for logging.
+- Registering a name twice fails with `FailureDuplicacy`.
+
+`ExamplePlugin` shows both sides.
+
 The proxy's explicit shutdown entry point is `LEBinkProxyShutdown`. Hosts that
 support unloading the proxy should call it before `FreeLibrary`; process
 termination uses the loader-safe fast path.

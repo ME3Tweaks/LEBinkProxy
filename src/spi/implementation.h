@@ -1,9 +1,12 @@
 #pragma once
 
 #include <cstring>
+#include <intrin.h>
 #include <mutex>
 #include <new>
+#include <string>
 #include <thread>
+#include <unordered_map>
 #include <Windows.h>
 #include "../conf/version.h"
 #include "../utils/io.h"
@@ -42,10 +45,59 @@ namespace SPI
         std::mutex mtxFindPattern_;
         std::mutex mtxInstallHook_;
 
+        struct ServiceEntry
+        {
+            std::uint32_t Version;
+            const void* Table;
+            std::wstring Provider;
+        };
+
+        std::mutex mtxServices_;
+        std::unordered_map<std::string, ServiceEntry> services_;
+
         // Implementation methods.
 
         __forceinline DWORD getVersion_() const noexcept { return version_; }
         __forceinline bool getReleaseMode_() const noexcept { return isRelease_; }
+
+        static bool isValidServiceName_(const char* name) noexcept
+        {
+            if (!name)
+            {
+                return false;
+            }
+
+            size_t const len = strnlen(name, SPI_SERVICE_NAME_MAX + 1);
+            if (len == 0 || len > SPI_SERVICE_NAME_MAX)
+            {
+                return false;
+            }
+
+            for (size_t i = 0; i < len; i++)
+            {
+                if (name[i] < 0x21 || name[i] > 0x7E)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // File name of the module containing the address, for logging which plugin made a call.
+        static std::wstring describeModuleAt_(void* address)
+        {
+            HMODULE module = nullptr;
+            wchar_t path[MAX_PATH];
+            if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                    static_cast<LPCWSTR>(address), &module)
+                || 0 == GetModuleFileNameW(module, path, MAX_PATH))
+            {
+                return L"<unknown module>";
+            }
+
+            wchar_t const* const fileName = wcsrchr(path, L'\\');
+            return fileName ? fileName + 1 : path;
+        }
 
         __declspec(noinline) bool parseCombinedPattern_(char* inPattern, BYTE* outPatternBuffer, BYTE* outMaskBuffer, size_t* outLength)
         {
@@ -341,6 +393,84 @@ namespace SPI
         void ReleaseConsoleLease(SPIConsoleLease const lease) override
         {
             consoleBroker_.ReleaseConsoleLease(lease);
+        }
+
+        SPIDEFN RegisterService(const char* name, std::uint32_t version, const void* table)
+        {
+            if (!isValidServiceName_(name) || version == 0 || !table)
+            {
+                return SPIReturn::FailureInvalidParam;
+            }
+
+            try
+            {
+                // Identify the calling plugin for the log. Registration is rare, so this is not done for queries.
+                std::wstring provider = describeModuleAt_(_ReturnAddress());
+
+                SPI_IMPL_INSTANCE_LOCK(mtxServices_);
+
+                auto const existing = services_.find(name);
+                if (existing != services_.end())
+                {
+                    GLogger.writeln(L"RegisterService: [%S] v%u from %s rejected, already registered as v%u by %s",
+                        name, version, provider.c_str(), existing->second.Version, existing->second.Provider.c_str());
+                    return SPIReturn::FailureDuplicacy;
+                }
+
+                GLogger.writeln(L"RegisterService: [%S] v%u by %s", name, version, provider.c_str());
+                services_.emplace(name, ServiceEntry{ version, table, std::move(provider) });
+            }
+            catch (...)
+            {
+                // Never let an allocation failure cross into the calling plugin.
+                return SPIReturn::FailureGeneric;
+            }
+
+            return SPIReturn::Success;
+        }
+
+        SPIDEFN QueryService(const char* name, std::uint32_t minVersion, const void** outTable, std::uint32_t* outVersion)
+        {
+            if (!outTable)
+            {
+                return SPIReturn::FailureInvalidParam;
+            }
+            *outTable = nullptr;
+
+            if (!isValidServiceName_(name))
+            {
+                return SPIReturn::FailureInvalidParam;
+            }
+
+            try
+            {
+                // Consumers poll this until the provider registers, so it deliberately does not log.
+                SPI_IMPL_INSTANCE_LOCK(mtxServices_);
+
+                auto const found = services_.find(name);
+                if (found == services_.end())
+                {
+                    return SPIReturn::FailureNotFound;
+                }
+
+                if (outVersion)
+                {
+                    *outVersion = found->second.Version;
+                }
+                if (found->second.Version < minVersion)
+                {
+                    return SPIReturn::FailureVersionTooOld;
+                }
+
+                *outTable = found->second.Table;
+            }
+            catch (...)
+            {
+                // The std::string key built from name can throw.
+                return SPIReturn::FailureGeneric;
+            }
+
+            return SPIReturn::Success;
         }
 
         // End of ISharedProxyInterface implementation.

@@ -24,6 +24,9 @@
 
 using SPIConsoleLease = std::uint64_t;
 
+/// Max. length of a service name passed to RegisterService / QueryService, excluding the terminator.
+#define SPI_SERVICE_NAME_MAX 63
+
 /// Plugin-side definition which marks the dll as supporting SPI.
 #define SPI_PLUGINSIDE_SUPPORT(NAME,AUTHOR,VERSION,GAME_FLAGS,SPIMINVER) \
 extern "C" __declspec(dllexport) void SpiSupportDecl(wchar_t** name, wchar_t** author, wchar_t** version, int* gameIndexFlags, int* spiMinVersion) \
@@ -76,6 +79,8 @@ enum class SPIReturn : short
     FailureDeprecated = 15,
     FailurePatternInvalid = 16,
     FailurePatternTooLong = 17,
+    FailureNotFound = 18,
+    FailureVersionTooOld = 19,
     ErrorFatal = 100,
     ErrorWinApi = 115,
 };
@@ -98,6 +103,8 @@ inline const wchar_t* SPIReturnToString(SPIReturn code)
     case SPIReturn::FailureDeprecated:             return L"FailureDeprecated - feature is defined in SPI but must not be used";
     case SPIReturn::FailurePatternInvalid:         return L"FailurePatternInvalid - provided pattern was ill-formed";
     case SPIReturn::FailurePatternTooLong:         return L"FailurePatternTooLong - provided pattern is too long";
+    case SPIReturn::FailureNotFound:               return L"FailureNotFound - nothing is registered under that name (yet)";
+    case SPIReturn::FailureVersionTooOld:          return L"FailureVersionTooOld - the registered version is lower than requested";
     case SPIReturn::ErrorFatal:                    return L"ErrorFatal - unspecified error AFTER WHICH EXECUTION CANNOT CONTINUE";
     case SPIReturn::ErrorWinApi:                   return L"ErrorWinApi - a call to Win API function failed, check GetLastError()";
     default:                                       return L"UNRECOGNIZED RETURN CODE - CONTACT DEVELOPERS";
@@ -187,6 +194,30 @@ public:
 
     /// Enable a hook previously created by InstallHookDeferred.
     SPIDECL EnableHook(const char* name) = 0;
+
+    /// <summary>
+    /// Publish a named table of functions for other plugins to look up with <see cref="ISharedProxyInterface::QueryService"/>.
+    /// The table must stay valid until process exit; there is no unregistration. After the provider
+    /// detaches, the table's functions should fail gracefully rather than become invalid.
+    /// </summary>
+    /// <param name="name">Printable ASCII without spaces, at most SPI_SERVICE_NAME_MAX chars, case-sensitive.
+    /// By convention "Owner.Feature", e.g. "LMP.Lobby".</param>
+    /// <param name="version">1 or higher. Bump it when appending functions to the table;
+    /// changing an existing entry requires a new name instead.</param>
+    /// <param name="table">Pointer to the provider's table, typically a static struct of function pointers.</param>
+    /// <returns>An appropriate <see cref="SPIReturn"/> code; FailureDuplicacy if the name is taken.</returns>
+    SPIDECL RegisterService(const char* name, std::uint32_t version, const void* table) = 0;
+
+    /// <summary>
+    /// Look up a table published with <see cref="ISharedProxyInterface::RegisterService"/>.
+    /// Attach order between plugins is not guaranteed, so query lazily and retry on FailureNotFound.
+    /// </summary>
+    /// <param name="name">Name the table was registered under.</param>
+    /// <param name="minVersion">Lowest table version the caller can use.</param>
+    /// <param name="outTable">Output value for the table, set to NULL on failure.</param>
+    /// <param name="outVersion">Optional output value for the registered version, also set on FailureVersionTooOld.</param>
+    /// <returns>An appropriate <see cref="SPIReturn"/> code; FailureNotFound or FailureVersionTooOld on a miss.</returns>
+    SPIDECL QueryService(const char* name, std::uint32_t minVersion, const void** outTable, std::uint32_t* outVersion) = 0;
 };
 
 #pragma endregion
