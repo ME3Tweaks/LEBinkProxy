@@ -2,7 +2,7 @@
 
 #include "../spi/interface.h"
 
-#define LEBINKPROXY_VERSION  L"2.0.0.15"
+#define LEBINKPROXY_VERSION  L"2.0.0.16"
 #define LEBINKPROXY_BUILDTM  __DATE__ " " __TIME__
 
 #ifdef ASI_DEBUG
