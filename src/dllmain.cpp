@@ -165,13 +165,60 @@ void SetWorkingDirectory() {
 	SetCurrentDirectoryW(exePath.parent_path().c_str());
 }
 
-// Licensee 205->206 (GMinPackageVersion)
+// Licensee 205 -> 206
+// Patch package loader checking if version is <= Licensee to be == Licensee so
+// LE3 packages cannot load in LMP to prevent conformance poisoning
+#define LMP_LICENSEE_CHECK_RVA 0x10562f
+bool PatchExactLicenseeCheckForLMP(BYTE* imageBase, bool imageFinal)
+{
+	constexpr BYTE expected[] = { 0x41, 0x3b, 0xc4, 0x0f, 0x8e, 0xa6, 0x00, 0x00, 0x00 };
+	constexpr BYTE patched[] = { 0x41, 0x3b, 0xc4, 0x0f, 0x84, 0xa6, 0x00, 0x00, 0x00 };
+	auto* patchAddress = imageBase + LMP_LICENSEE_CHECK_RVA;
+
+	if (memcmp(patchAddress, patched, sizeof(patched)) == 0)
+		return true;
+	if (memcmp(patchAddress, expected, sizeof(expected)) != 0)
+	{
+		if (!GProxyOutputReady.load(std::memory_order_acquire))
+			OutputDebugStringW(L"LEBinkProxy: LMP licensee check bytes not as expected (image may still be encrypted).\n");
+		else if (imageFinal)
+			GLogger.writeln(L"PatchExactLicenseeCheckForLMP: ERROR: unexpected bytes at 0x%p after DRM, not patching.", patchAddress);
+		else
+			GLogger.writeln(L"PatchExactLicenseeCheckForLMP: bytes at 0x%p not as expected yet (image may still be encrypted), retrying after DRM.", patchAddress);
+		return false;
+	}
+
+	DWORD oldProtect;
+	if (!VirtualProtect(patchAddress, sizeof(patched), PAGE_EXECUTE_READWRITE, &oldProtect))
+	{
+		if (GProxyOutputReady.load(std::memory_order_acquire))
+			GLogger.writeln(L"PatchExactLicenseeCheckForLMP: ERROR: VirtualProtect (RWX) failed (code = %d).", GetLastError());
+		else
+			OutputDebugStringW(L"LEBinkProxy: LMP licensee check patch VirtualProtect failed.\n");
+		return false;
+	}
+	memcpy(patchAddress, patched, sizeof(patched));
+	if (!VirtualProtect(patchAddress, sizeof(patched), oldProtect, &oldProtect))
+	{
+		if (GProxyOutputReady.load(std::memory_order_acquire))
+			GLogger.writeln(L"PatchExactLicenseeCheckForLMP: WARNING: failed to restore original page protection (code = %d).", GetLastError());
+		else
+			OutputDebugStringW(L"LEBinkProxy: LMP licensee check patch could not restore page protection.\n");
+	}
+	FlushInstructionCache(GetCurrentProcess(), patchAddress, sizeof(patched));
+
+	if (GProxyOutputReady.load(std::memory_order_acquire))
+		GLogger.writeln(L"PatchExactLicenseeCheckForLMP: packages must now match the LMP licensee version exactly (0x%p).", patchAddress);
+	return true;
+}
+
+// Licensee 205->206 (GPackageFileLicenseeVersion)
 // Must be patched before the game reads it, which happens very early during game init.
 // The first call is made directly from DllMain before the bootstrap worker is
 // created. The function therefore cannot rely on GLEBinkProxy or the logger,
 // both of which are initialized by the worker.
 #define LMP_LICENSEE_VERSION_RVA 0x1755c1c
-bool PatchLicenseeVersionForLMP()
+bool PatchLicenseeVersionForLMP(bool imageFinal = false)
 {
 	wchar_t executablePath[MAX_PATH]{};
 	if (GetModuleFileNameW(nullptr, executablePath, _countof(executablePath)) == 0 ||
@@ -206,7 +253,9 @@ bool PatchLicenseeVersionForLMP()
 
 	if (GProxyOutputReady.load(std::memory_order_acquire))
 		GLogger.writeln(L"PatchLicenseeVersionForLMP: patched licensee version to LMP (206) at 0x%p.", patchAddress);
-	return true;
+
+	// Only allow exact licensee matches
+	return PatchExactLicenseeCheckForLMP(imageBase, imageFinal);
 }
 
 void __stdcall AsyncAttach()
@@ -225,7 +274,7 @@ void __stdcall AsyncAttach()
 		// On DRM'd exes, the image is still encrypted until DRM unwraps it, so the early patch
 		// attempt in SyncAttach might fail as that area of memory is not yet decrypted. Re-check/patch here
 		// now that the image is guaranteed to be in its final decrypted state.
-		PatchLicenseeVersionForLMP();
+		PatchLicenseeVersionForLMP(true);
 
 		// Unlock the console.
 		if (!GLEBinkProxy.ConsoleEnabler->Activate())
